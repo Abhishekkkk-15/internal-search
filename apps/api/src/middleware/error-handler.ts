@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 
 // Fallback for requests to unknown routes
 export const notFound = (req: Request, res: Response, next: NextFunction) => {
@@ -12,19 +12,19 @@ export const errorHandler = (
   error: any,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  
+
   console.error(`[Error] ${error.message}`);
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== "production") {
     console.error(error.stack);
   }
 
   res.status(statusCode).json({
     status: false,
     message: error.message || "Internal Server Error",
-    stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
+    stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
     data: [],
   });
 };

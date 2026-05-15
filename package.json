@@ -2,13 +2,15 @@
   "name": "nexus-assistant-monorepo",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.29.2",
   "scripts": {
-    "dev": "pnpm --filter web dev",
+    "dev": "turbo run dev",
     "build": "pnpm --recursive build",
     "lint": "pnpm --recursive lint"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
+    "turbo": "^2.9.14",
     "typescript": "^5.7.2"
   },
   "dependencies": {
