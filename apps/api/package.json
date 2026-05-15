@@ -13,6 +13,7 @@
     "cors": "^2.8.5"
   },
   "devDependencies": {
+    "@nexus/types": "workspace:*",
     "@nexus/eslint-config": "workspace:*",
     "@nexus/typescript-config": "workspace:*",
     "@types/express": "^5.0.0",

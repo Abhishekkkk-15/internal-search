@@ -9,9 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.2",
+    "@hookform/resolvers": "^3.9.1",
     "@nexus/types": "workspace:*",
     "@nexus/ui": "workspace:*",
-    "@hookform/resolvers": "^3.9.1",
+    "@nexus/database": "workspace:*",
     "@tanstack/react-query": "^5.62.7",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",

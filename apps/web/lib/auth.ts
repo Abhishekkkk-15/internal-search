@@ -2,7 +2,11 @@ import NextAuth from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import jwt from "jsonwebtoken";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "@nexus/database";
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_ID || "mock_github_id_placeholder",
