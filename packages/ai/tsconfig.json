@@ -1,0 +1,12 @@
+{
+  "extends": "@nexus/typescript-config/base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "composite": true
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../types" }
+  ]
+}

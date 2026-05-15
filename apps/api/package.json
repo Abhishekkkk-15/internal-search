@@ -9,16 +9,17 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "express": "^4.21.2",
+    "@nexus/database": "workspace:*",
     "cors": "^2.8.5",
-    "@nexus/database": "workspace:*"
+    "express": "^4.21.2",
+    "openai": "^6.37.0"
   },
   "devDependencies": {
-    "@nexus/types": "workspace:*",
     "@nexus/eslint-config": "workspace:*",
+    "@nexus/types": "workspace:*",
     "@nexus/typescript-config": "workspace:*",
-    "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
     "eslint": "^9.39.1",
     "tsx": "^4.19.2",

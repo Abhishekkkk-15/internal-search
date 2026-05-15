@@ -36,6 +36,9 @@ importers:
       express:
         specifier: ^4.21.2
         version: 4.22.2
+      openai:
+        specifier: ^6.37.0
+        version: 6.37.0(zod@3.25.76)
     devDependencies:
       '@nexus/eslint-config':
         specifier: workspace:*
@@ -140,6 +143,37 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/ai:
+    dependencies:
+      '@nexus/types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.1
+        version: 9.39.4
+      '@nexus/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@1.21.7)
+      eslint-config-prettier:
+        specifier: ^10.1.1
+        version: 10.1.8(eslint@9.39.4(jiti@1.21.7))
+      eslint-plugin-only-warn:
+        specifier: ^1.1.0
+        version: 1.2.1
+      eslint-plugin-turbo:
+        specifier: ^2.7.1
+        version: 2.9.14(eslint@9.39.4(jiti@1.21.7))(turbo@2.9.14)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.50.0
+        version: 8.59.3(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
 
   packages/database:
     dependencies:
@@ -1958,6 +1992,18 @@ packages:
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
     engines: {node: '>= 0.8'}
+
+  openai@6.37.0:
+    resolution: {integrity: sha512-0H5dEGFmmLv6KSd0W1w2nyL8WsLkX6yoLeQpU+dZAOuGcany5qkYQMmj35ZrKgb6yiyYqpUzFOpR8mZQkgqeEQ==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -4250,6 +4296,10 @@ snapshots:
   on-finished@2.4.1:
     dependencies:
       ee-first: 1.1.1
+
+  openai@6.37.0(zod@3.25.76):
+    optionalDependencies:
+      zod: 3.25.76
 
   optionator@0.9.4:
     dependencies:

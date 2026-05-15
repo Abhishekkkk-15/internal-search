@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "pnpm --recursive build",
-    "lint": "pnpm --recursive lint"
+    "build:ai": "pnpm --filter @nexus/ai run build",
+    "lint": "pnpm --recursive lint",
+    "lint:ai": "pnpm --filter @nexus/ai run lint"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",

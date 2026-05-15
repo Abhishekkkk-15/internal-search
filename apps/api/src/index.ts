@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import routes from "./routes";
+
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 8080;
@@ -16,6 +18,8 @@ app.get("/", (req: Request, res: Response) => {
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
+
+app.use("/api", routes);
 
 // Middleware for unknown routes and global error handling
 import { notFound, errorHandler } from "./middleware/error-handler";
