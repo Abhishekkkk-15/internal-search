@@ -1,15 +1,148 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
+// NextAuth Schema
+
 model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  // Nexus domain relations
+  organizations OrganizationUser[]
+  conversations Conversation[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Nexus Domain Schema
+
+model Organization {
+  id            String   @id @default(cuid())
+  name          String
+  timezone      String   @default("America/Los_Angeles")
+  language      String   @default("en-US")
+  llmProvider   String   @default("openai")
+  retentionDays Int      @default(90)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users       OrganizationUser[]
+  connections Connection[]
+  documents   Document[]
+}
+
+model OrganizationUser {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String       @default("member") // owner, admin, member
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model Connection {
+  id             String   @id @default(cuid())
+  organizationId String
+  source         String   // slack, notion, github, drive, jira
+  status         String   // connected, disconnected, syncing
+  accessToken    String?  @db.Text
+  refreshToken   String?  @db.Text
+  lastSync       DateTime?
+  indexedCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  userId    String
+  title     String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // user, assistant
+  content        String   @db.Text
+  timestamp      DateTime @default(now())
+  
+  // JSON field to store actions payload
+  actions        Json?
+  
+  // JSON field to store search results snippet
+  searchResults  Json?
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  content        String   @db.Text
+  source         String   // slack, notion, github, drive, jira
+  url            String?
+  author         String?
+  createdAt      DateTime @default(now())
+  
+  // pgvector extension mapping
+  embedding      Unsupported("vector(1536)")?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
