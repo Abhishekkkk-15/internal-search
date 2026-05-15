@@ -5,6 +5,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
+    "build": "tsc",
     "generate": "prisma generate",
     "push": "prisma db push"
   },
