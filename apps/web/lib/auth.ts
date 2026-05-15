@@ -4,6 +4,12 @@ import GoogleProvider from "next-auth/providers/google";
 import jwt from "jsonwebtoken";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@nexus/database";
+
+const authSecret =
+  process.env.NEXTAUTH_SECRET ||
+  process.env.AUTH_SECRET ||
+  "fallback_nexus_enterprise_secret_token_key_v2";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
 
@@ -19,8 +25,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         process.env.GOOGLE_CLIENT_SECRET || "mock_google_secret_placeholder",
     }),
   ],
-  secret:
-    process.env.AUTH_SECRET || "fallback_nexus_enterprise_secret_token_key_v2",
+  secret: authSecret,
   session: {
     strategy: "jwt",
   },
@@ -36,7 +41,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: token.email,
             name: token.name,
           },
-          process.env.NEXTAUTH_SECRET!,
+          authSecret,
           { expiresIn: "30d" },
         );
         session.user.id = token.sub;

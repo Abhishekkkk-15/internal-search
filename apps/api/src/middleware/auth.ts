@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import "../types/index"; // Import Express type augmentation
+import { config } from "dotenv";
+import { User } from "@nexus/database";
+config(); // Load environment variables from .env file
 export const authmiddleware = (
   req: Request,
   res: Response,
@@ -17,7 +20,7 @@ export const authmiddleware = (
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    req.user = decoded;
+    req.user = decoded as User;
     next();
   } catch (error) {
     return res.status(401).json({ message: "Invalid token" });
