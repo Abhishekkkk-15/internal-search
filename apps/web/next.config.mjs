@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@nexus/types', '@nexus/ui'],
+  transpilePackages: ["@nexus/types", "@nexus/ui"],
   eslint: {
     ignoreDuringBuilds: true,
   },

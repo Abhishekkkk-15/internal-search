@@ -8,6 +8,11 @@
     "lint": "pnpm --recursive lint"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "jsonwebtoken": "^9.0.3"
   }
 }
