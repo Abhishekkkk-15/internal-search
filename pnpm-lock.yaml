@@ -161,6 +161,9 @@ importers:
       '@langchain/openai':
         specifier: ^1.4.5
         version: 1.4.5(@langchain/core@1.1.46(openai@6.37.0(zod@3.25.76)))
+      '@nexus/database':
+        specifier: workspace:*
+        version: link:../database
       '@nexus/types':
         specifier: workspace:*
         version: link:../types

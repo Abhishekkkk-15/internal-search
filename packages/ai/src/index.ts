@@ -4,5 +4,5 @@
  */
 
 export * from "./client";
-
-export {};
+export * from "./rag";
+export * from "./embeddings";

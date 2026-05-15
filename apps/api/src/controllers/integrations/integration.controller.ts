@@ -3,6 +3,21 @@ import { prisma } from '../../lib/prisma';
 import { ConnectorConfigs } from '../../connectors';
 import axios from 'axios';
 
+// 0. Fetch all integrations for an org
+export const getIntegrations = async (req: Request, res: Response): Promise<void> => {
+  const organizationId = req.headers['x-organization-id'] as string;
+  if (!organizationId) {
+    res.status(400).json({ error: 'Missing X-Organization-Id header' });
+    return;
+  }
+
+  const connections = await prisma.connection.findMany({
+    where: { organizationId }
+  });
+
+  res.json({ data: connections });
+};
+
 // 1. Redirect to Provider's OAuth Consent Screen
 export const connectIntegration = async (req: Request, res: Response): Promise<void> => {
   const source = req.params.source as keyof typeof ConnectorConfigs;
@@ -13,10 +28,10 @@ export const connectIntegration = async (req: Request, res: Response): Promise<v
     return;
   }
 
-  // The organization ID should be attached to the user session (passed via headers from the frontend Proxy we built earlier)
-  const organizationId = req.headers['x-organization-id'] as string;
+  // The organization ID should be attached to the query string since this is a browser redirect
+  const organizationId = req.query.orgId as string || req.headers['x-organization-id'] as string;
   if (!organizationId) {
-    res.status(400).json({ error: 'Missing X-Organization-Id header' });
+    res.status(400).json({ error: 'Missing organizationId parameter' });
     return;
   }
 
@@ -138,3 +153,14 @@ export const disconnectIntegration = async (req: Request, res: Response): Promis
 
   res.json({ success: true, message: `Disconnected ${source}` });
 };
+
+// 4. Trigger Manual Sync
+export const triggerSync = async (req: Request, res: Response): Promise<void> => {
+  const { runSyncJob } = require('../../queues/workers/sync.worker');
+  
+  // We run this in the background (don't await) so the UI doesn't hang
+  runSyncJob().catch((err: any) => console.error('[Manual Sync Error]:', err));
+  
+  res.json({ success: true, message: 'Sync job started in the background' });
+};
+

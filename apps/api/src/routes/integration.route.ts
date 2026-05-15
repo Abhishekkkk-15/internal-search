@@ -1,7 +1,13 @@
 import { Router } from 'express';
-import { connectIntegration, integrationCallback, disconnectIntegration } from '../controllers/integrations/integration.controller';
+import { getIntegrations, connectIntegration, integrationCallback, disconnectIntegration, triggerSync } from '../controllers/integrations/integration.controller';
 
 const router: Router = Router();
+
+// List all integrations
+router.get('/', getIntegrations);
+
+// Trigger manual sync
+router.post('/sync', triggerSync);
 
 // OAuth Handshake start
 router.get('/:source/connect', connectIntegration);

@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { SlackService, NotionService, GitHubService } from '../../lib/connectors';
+import { embeddingService } from '@nexus/ai';
 
 export const runSyncJob = async () => {
   console.log('[Sync Worker] Starting background data ingestion job...');
@@ -33,18 +34,28 @@ export const runSyncJob = async () => {
           console.log(`[Sync Worker] No extraction service configured for ${connection.source}`);
       }
 
-      // 3. Save the raw text to the database for the AI package to process later
+      // 3. Process and embed documents
       for (const doc of rawDocuments) {
-        await prisma.document.create({
-          data: {
-            organizationId: connection.organizationId,
-            source: doc.source,
-            title: doc.title,
-            content: doc.content,
-            author: doc.author,
-            url: doc.url,
-          }
-        });
+        // Generate embedding for the content
+        const [embedding] = await embeddingService.generateEmbeddings([doc.content]);
+        const embeddingString = `[${embedding.join(',')}]`;
+
+        // We use a raw query because Prisma's Unsupported type for pgvector 
+        // doesn't support standard .create() for the vector column yet.
+        await prisma.$executeRaw`
+          INSERT INTO "Document" ("id", "organizationId", "source", "title", "content", "author", "url", "embedding", "updatedAt")
+          VALUES (
+            gen_random_uuid(), 
+            ${connection.organizationId}, 
+            ${doc.source}, 
+            ${doc.title}, 
+            ${doc.content}, 
+            ${doc.author}, 
+            ${doc.url}, 
+            ${embeddingString}::vector,
+            now()
+          )
+        `;
       }
 
       // 4. Update sync timestamp and count
@@ -56,7 +67,15 @@ export const runSyncJob = async () => {
         }
       });
 
-      console.log(`[Sync Worker] Successfully ingested ${rawDocuments.length} documents from ${connection.source}`);
+      console.log(`[Sync Worker] Successfully ingested and embedded ${rawDocuments.length} documents from ${connection.source}`);
+
+    } catch (error: any) {
+      console.error(`[Sync Worker] Error syncing ${connection.source}:`, error.message);
+    }
+  }
+
+  console.log('[Sync Worker] Job completed.');
+};
 
     } catch (error: any) {
       console.error(`[Sync Worker] Error syncing ${connection.source}:`, error.message);
