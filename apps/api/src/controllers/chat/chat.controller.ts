@@ -1,14 +1,19 @@
 import type { Request, Response } from "express";
-import { getInvdiaClient } from "@nexus/ai";
+import { getNvidiaChatClient, CHAT_MODELS } from "@nexus/ai";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "@nexus/database";
+
+interface AuthenticatedRequest extends Request {
+  user?: any;
+}
+
 export class ChatController {
   agent: ChatOpenAI;
   constructor() {
-    this.agent = getInvdiaClient("meta/llama-3.1-8b-instruct");
+    this.agent = getNvidiaChatClient(CHAT_MODELS.FAST);
   }
 
-  async handleChat(req: Request, res: Response) {
+  async handleChat(req: AuthenticatedRequest, res: Response) {
     console.log("got here");
 
     try {
@@ -57,7 +62,7 @@ export class ChatController {
     }
   }
 
-  async getConversations(req: Request, res: Response){
+  async getConversations(req: AuthenticatedRequest, res: Response){
     const user = req.user 
     const conversations = await prisma.conversation.findMany({
       where:{
