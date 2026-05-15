@@ -1,8 +1,12 @@
-import OpenAI from "openai";
 import type { Request, Response } from "express";
+import { getInvdiaClient } from "@nexus/ai";
+import { ChatOpenAI } from "@langchain/openai";
 
 export class ChatController {
-  constructor(private openai: OpenAI) {}
+  agent: ChatOpenAI;
+  constructor() {
+    this.agent = getInvdiaClient("meta/llama-3.1-8b-instruct");
+  }
 
   async handleChat(req: Request, res: Response) {
     console.log("got here");
@@ -10,13 +14,13 @@ export class ChatController {
     try {
       const { messages } = req.body;
 
-      const response = await this.openai.chat.completions.create({
-        model: "meta/llama-3.1-8b-instruct",
-        messages: messages.map((msg: { role: string; content: string }) => ({
+      const response = await this.agent.invoke(
+        messages.map((msg: { role: string; content: string }) => ({
           role: msg.role,
           content: msg.content,
+          options: {},
         })),
-      });
+      );
       console.log("after llm");
 
       console.log(response);
