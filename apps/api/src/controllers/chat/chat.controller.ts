@@ -56,4 +56,21 @@ export class ChatController {
       });
     }
   }
+
+  async getConversations(req: Request, res: Response){
+    const user = req.user 
+    const conversations = await prisma.conversation.findMany({
+      where:{
+        userId: user?.id
+      },
+      include:{
+        messages: true
+      }
+    })
+
+    const pay = conversations ? conversations : []
+    return res.status(200).json({pay})
+  }
+
+
 }
