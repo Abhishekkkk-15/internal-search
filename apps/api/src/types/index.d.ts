@@ -1,7 +1,7 @@
 import "express";
 import { User } from "@nexus/database";
 
-declare global {
+export declare global {
   namespace Express {
     interface Request {
       user?: User; // Add custom property to Request

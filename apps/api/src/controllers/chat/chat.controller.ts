@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { getInvdiaClient } from "@nexus/ai";
 import { ChatOpenAI } from "@langchain/openai";
-
+import { prisma } from "@nexus/database";
 export class ChatController {
   agent: ChatOpenAI;
   constructor() {
@@ -13,6 +13,23 @@ export class ChatController {
 
     try {
       const { messages } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get or create conversation
+      let conversation = await prisma.conversation.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: { userId, title: "New Chat" },
+        });
+      }
 
       const response = await this.agent.invoke(
         messages.map((msg: { role: string; content: string }) => ({
@@ -21,9 +38,14 @@ export class ChatController {
           options: {},
         })),
       );
-      console.log("after llm");
 
-      console.log(response);
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: "assistant",
+          content: response.text,
+        },
+      });
 
       return res.status(200).json(response);
     } catch (error) {

@@ -5,11 +5,8 @@ import jwt from "jsonwebtoken";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@nexus/database";
 
-const authSecret =
-  process.env.NEXTAUTH_SECRET ||
-  process.env.AUTH_SECRET ||
-  "fallback_nexus_enterprise_secret_token_key_v2";
-
+const authSecret = process.env.NEXTAUTH_SECRET;
+console.log(authSecret);
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
 
@@ -31,24 +28,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.accessToken = jwt.sign(
+      if (session.user) {
+        const userId = token.id || token.sub;
+        const accTok = jwt.sign(
           {
-            sub: token.id,
-            id: token.id,
+            sub: userId,
+            id: userId,
+            // @ts-ignore
             role: token.role,
             image: token.image || token.picture,
             email: token.email,
             name: token.name,
           },
-          authSecret,
+          authSecret!,
           { expiresIn: "30d" },
         );
-        session.user.id = token.sub;
+        console.log(accTok);
+        session.accessToken = accTok;
+        // @ts-ignore
+        session.user.id = userId;
       }
       return session;
     },
-    async jwt({ token, account }) {
+    async jwt({ token, user, account }) {
+      if (user) {
+        token.id = user.id;
+        // @ts-ignore
+        token.role = user.role;
+      }
       if (account) {
         token.accessToken = account.access_token;
       }

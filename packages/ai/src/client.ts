@@ -13,8 +13,7 @@ export const CHAT_MODELS = {
 
 export type ChatModel = (typeof CHAT_MODELS)[keyof typeof CHAT_MODELS];
 let clientInstance: ChatOpenAI | null = null;
-export const getInvdiaClient = (model: string): ChatOpenAI => {
-  const baseURL = "https://integrate.api.nvidia.com/v1";
+export const getInvdiaClient = (model: ChatModel): ChatOpenAI => {
   const apiKey = process.env.INVDIA_API_KEY;
   if (!apiKey) {
     throw new Error("INVDIA_API_KEY environment variable is not set");
@@ -25,7 +24,7 @@ export const getInvdiaClient = (model: string): ChatOpenAI => {
       apiKey,
       temperature: 0.7,
       configuration: {
-        baseURL,
+        baseURL: "https://integrate.api.nvidia.com/v1",
       },
     });
   }
