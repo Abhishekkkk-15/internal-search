@@ -21,6 +21,8 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useNexusStore } from "../../lib/store";
+import { useSession } from "next-auth/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Zod client validation schema definition
 const settingsSchema = z.object({
@@ -52,48 +54,102 @@ const settingsSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 export default function SettingsPage() {
-  const {
-    currentOrg,
-    setOrg,
-    llmProvider,
-    setLlmProvider,
-    toolsEnabled,
-    toggleTool,
-  } = useNexusStore();
+
+  const { data: session } = useSession();
+  const organizationId = session?.user?.organizationId || 'org_default';
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<
     "general" | "model" | "tools" | "memory"
   >("general");
   const [showToast, setShowToast] = useState(false);
 
+  // 1. Fetch real settings
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['orgSettings', organizationId],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/organization/settings`, {
+        headers: {
+          'Authorization': `Bearer ${session?.accessToken}`,
+          'X-Organization-Id': organizationId
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      return res.json();
+    },
+    enabled: !!session?.accessToken
+  });
+
+  // 2. Update settings mutation
+  const updateMutation = useMutation({
+    mutationFn: async (values: SettingsFormValues) => {
+      const res = await fetch(`${API_BASE}/organization/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.accessToken}`,
+          'X-Organization-Id': organizationId
+        },
+        body: JSON.stringify({
+          name: values.organizationName,
+          timezone: values.timezone,
+          language: values.language,
+          llmProvider: values.llmProvider,
+          retentionDays: values.retentionDays
+        })
+      });
+      if (!res.ok) throw new Error('Failed to update settings');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orgSettings'] });
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3500);
+    }
+  });
+
   // Initialize Form context
   const {
     register,
     handleSubmit,
     setValue,
+    reset,
     watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      organizationName: currentOrg,
+      organizationName: "",
       timezone: "America/Los_Angeles",
       language: "en-US",
-      llmProvider: llmProvider || "openai",
-      apiKey:
-        llmProvider === "openai" ?
-          "sk-proj-nexus-enterprise-mock-key-v2"
-        : "sk-ant-api03-nexus-mock-credential",
+      llmProvider: "openai",
+      apiKey: "sk-proj-nexus-enterprise-mock-key-v2",
       tools: {
-        jira: toolsEnabled?.jira ?? true,
-        slack: toolsEnabled?.slack ?? true,
-        notion: toolsEnabled?.notion ?? false,
+        jira: true,
+        slack: true,
+        notion: false,
         drive: true,
       },
       retentionDays: 90,
       vectorStrategy: "cosine_hybrid",
     },
   });
+
+  // Sync form with fetched data
+  useEffect(() => {
+    if (settings) {
+      reset({
+        organizationName: settings.name,
+        timezone: settings.timezone,
+        language: settings.language,
+        llmProvider: settings.llmProvider as any,
+        apiKey: "sk-proj-nexus-enterprise-mock-key-v2", // Keep mock for now
+        tools: { jira: true, slack: true, notion: false, drive: true },
+        retentionDays: settings.retentionDays,
+        vectorStrategy: "cosine_hybrid",
+      });
+    }
+  }, [settings, reset]);
 
   // Watch selected provider to prepopulate placeholder strings dynamically
   const watchedProvider = watch("llmProvider");
@@ -116,22 +172,7 @@ export default function SettingsPage() {
 
   // Handle Form submittal payload processing
   const onSubmit = async (data: SettingsFormValues) => {
-    // Simulate persistent backoff writes
-    await new Promise((r) => setTimeout(r, 600));
-
-    // Commit state updates to local persistent memory buffer store
-    setOrg(data.organizationName);
-    setLlmProvider(data.llmProvider);
-
-    // flush simple sets
-    if (data.tools.jira !== (toolsEnabled?.jira ?? true)) toggleTool("jira");
-    if (data.tools.slack !== (toolsEnabled?.slack ?? true)) toggleTool("slack");
-    if (data.tools.notion !== (toolsEnabled?.notion ?? false))
-      toggleTool("notion");
-
-    // Notify user visually
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3500);
+    updateMutation.mutate(data);
   };
 
   const tabs = [

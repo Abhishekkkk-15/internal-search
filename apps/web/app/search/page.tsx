@@ -38,6 +38,7 @@ export interface ExtendedSearchResult {
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [searchTrigger, setSearchTrigger] = useState('');
+  const [activeMatrix, setActiveMatrix] = useState<'hybrid' | 'semantic' | 'keyword'>('hybrid');
   const [selectedSources, setSelectedSources] = useState<SourceType[]>(['slack', 'notion', 'github', 'drive', 'jira']);
   const [authorFilter, setAuthorFilter] = useState('');
   const [dateRange, setDateRange] = useState('all');
@@ -66,7 +67,7 @@ export default function SearchPage() {
 
   // Fetch search items via Real Backend Hybrid Search
   const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: ['hybridSearch', searchTrigger, selectedSources, page],
+    queryKey: ['hybridSearch', searchTrigger, selectedSources, activeMatrix, page],
     queryFn: async () => {
       if (!searchTrigger) return { data: [], metadata: { count: 0 } };
 
@@ -80,6 +81,7 @@ export default function SearchPage() {
         body: JSON.stringify({
           query: searchTrigger,
           scope: selectedSources,
+          mode: activeMatrix
         }),
       });
       if (!res.ok) throw new Error('Failed to retrieve search data payload');
@@ -110,30 +112,53 @@ export default function SearchPage() {
           </p>
         </div>
 
-        {/* Presentation modes switch */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 self-start md:self-center shrink-0">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg transition-all ${
-              viewMode === 'grid'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-            title="Grid presentation layout"
-          >
-            <Grid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-all ${
-              viewMode === 'list'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-            title="List presentation layout"
-          >
-            <List className="w-4 h-4" />
-          </button>
+        {/* Matrix & Presentation switchers */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 self-start md:self-center shrink-0">
+          {/* Matrix Switcher */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+            {(['hybrid', 'semantic', 'keyword'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setActiveMatrix(m);
+                  setPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                  activeMatrix === m
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {/* Presentation modes switch */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+              title="Grid presentation layout"
+            >
+              <Grid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'list'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+              title="List presentation layout"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 

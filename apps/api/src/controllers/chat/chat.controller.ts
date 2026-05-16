@@ -142,21 +142,22 @@ ${contextText}`;
 
   async handleSearch(req: AuthenticatedRequest, res: Response) {
     try {
-      const { query, scope } = req.body;
+      const { query, scope, mode } = req.body;
       const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
 
       if (!query) {
         return res.status(400).json({ message: "Query is required" });
       }
 
-      const results = await embeddingService.searchDocuments(query, organizationId, scope || [], 10);
+      const results = await embeddingService.searchDocuments(query, organizationId, scope || [], 10, mode || 'hybrid');
 
       return res.status(200).json({
         data: results,
         metadata: {
           count: results.length,
           query,
-          method: "Hybrid (pgvector + tsvector via RRF)"
+          mode: mode || 'hybrid',
+          method: mode === 'hybrid' ? "Hybrid (pgvector + tsvector via RRF)" : mode === 'semantic' ? "Semantic (pgvector)" : "Keyword (tsvector)"
         }
       });
     } catch (error) {
