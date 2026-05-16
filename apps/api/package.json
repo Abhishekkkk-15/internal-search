@@ -13,8 +13,10 @@
     "@nexus/ai": "workspace:*",
     "@nexus/database": "workspace:*",
     "axios": "^1.16.1",
+    "bullmq": "^5.76.8",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "ioredis": "^5.10.1",
     "openai": "^6.37.0"
   },
   "devDependencies": {

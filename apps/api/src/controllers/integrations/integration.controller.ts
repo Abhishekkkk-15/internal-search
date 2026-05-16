@@ -170,13 +170,19 @@ export const disconnectIntegration = async (req: Request, res: Response): Promis
   res.json({ success: true, message: `Disconnected ${source}` });
 };
 
-// 4. Trigger Manual Sync
+// 4. Trigger Manual Sync (via BullMQ)
 export const triggerSync = async (req: Request, res: Response): Promise<void> => {
-  const { runSyncJob } = require('../../queues/workers/sync.worker');
+  const organizationId = req.headers['x-organization-id'] as string;
+  const { syncQueue } = require('../../queues/sync.queue');
+
+  if (!organizationId) {
+    res.status(400).json({ error: 'Missing organizationId' });
+    return;
+  }
+
+  // Add job to BullMQ
+  await syncQueue.add(`sync-${organizationId}`, { organizationId });
   
-  // We run this in the background (don't await) so the UI doesn't hang
-  runSyncJob().catch((err: any) => console.error('[Manual Sync Error]:', err));
-  
-  res.json({ success: true, message: 'Sync job started in the background' });
+  res.json({ success: true, message: 'Sync job queued in BullMQ' });
 };
 

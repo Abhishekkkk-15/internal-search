@@ -7,7 +7,7 @@ export const CHAT_MODELS = {
   SMART_EXTRA: "meta/llama-3.1-405b-instruct",
   CHEAP: "mistralai/mistral-7b-instruct",
   CODER: "deepseek-ai/deepseek-coder",
-  EMBED: "nvidia/nv-embedqa-e5-v5"
+  EMBED: "nvidia/nv-embed-v1"
 } as const;
 
 export type ChatModel = (typeof CHAT_MODELS)[keyof typeof CHAT_MODELS];
@@ -34,7 +34,7 @@ export const getNvidiaChatClient = (model: Exclude<ChatModel, 'nvidia/nv-embedqa
   return chatClientInstance;
 };
 
-export const getNvidiaEmbedClient = (model: 'nvidia/nv-embedqa-e5-v5' = CHAT_MODELS.EMBED): OpenAIEmbeddings => {
+export const getNvidiaEmbedClient = (model: 'nvidia/nv-embed-v1' = CHAT_MODELS.EMBED): OpenAIEmbeddings => {
   const apiKey = process.env.INVDIA_API_KEY;
   if (!apiKey) {
     throw new Error("INVDIA_API_KEY environment variable is not set");

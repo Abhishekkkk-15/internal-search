@@ -142,7 +142,7 @@ model Document {
   createdAt      DateTime @default(now())
   
   // pgvector extension mapping
-  embedding      Unsupported("vector(1536)")?
+  embedding      Unsupported("vector(4096)")?
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }

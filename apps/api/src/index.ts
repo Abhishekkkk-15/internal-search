@@ -5,6 +5,7 @@ import routes from "./routes";
 // Middleware for unknown routes and global error handling
 import { notFound, errorHandler } from "./middleware/error-handler";
 import { authmiddleware } from "./middleware/auth";
+import "./queues/workers/sync.worker"; // Start the BullMQ worker
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 8080;
