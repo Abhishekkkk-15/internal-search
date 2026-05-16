@@ -28,7 +28,7 @@ export class OrganizationController {
   async updateSettings(req: Request, res: Response) {
     try {
       const organizationId = req.headers['x-organization-id'] as string;
-      const { name, timezone, language, llmProvider, retentionDays } = req.body;
+      const { name, timezone, language, llmProvider, retentionDays, tools } = req.body;
 
       if (!organizationId) {
         return res.status(400).json({ message: "Organization ID is required" });
@@ -42,6 +42,7 @@ export class OrganizationController {
           language,
           llmProvider,
           retentionDays: retentionDays ? parseInt(retentionDays) : undefined,
+          enabledTools: tools || undefined,
         },
       });
 

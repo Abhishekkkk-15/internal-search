@@ -95,7 +95,8 @@ export default function SettingsPage() {
           timezone: values.timezone,
           language: values.language,
           llmProvider: values.llmProvider,
-          retentionDays: values.retentionDays
+          retentionDays: values.retentionDays,
+          tools: values.tools
         })
       });
       if (!res.ok) throw new Error('Failed to update settings');
@@ -138,13 +139,25 @@ export default function SettingsPage() {
   // Sync form with fetched data
   useEffect(() => {
     if (settings) {
+      const enabledTools = (settings.enabledTools as any) || {
+        jira: true,
+        slack: true,
+        notion: false,
+        drive: true
+      };
+
       reset({
         organizationName: settings.name,
         timezone: settings.timezone,
         language: settings.language,
         llmProvider: settings.llmProvider as any,
         apiKey: "sk-proj-nexus-enterprise-mock-key-v2", // Keep mock for now
-        tools: { jira: true, slack: true, notion: false, drive: true },
+        tools: {
+          jira: enabledTools.jira ?? true,
+          slack: enabledTools.slack ?? true,
+          notion: enabledTools.notion ?? false,
+          drive: enabledTools.drive ?? true
+        },
         retentionDays: settings.retentionDays,
         vectorStrategy: "cosine_hybrid",
       });
