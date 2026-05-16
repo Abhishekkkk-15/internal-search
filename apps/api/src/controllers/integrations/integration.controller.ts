@@ -79,44 +79,60 @@ export const integrationCallback = async (req: Request, res: Response): Promise<
     const redirectUri = process.env[`${source.toUpperCase()}_REDIRECT_URI`];
 
     // Exchange code for access token
-    const tokenResponse = await axios.post(config.oauth.tokenUrl, {
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      redirect_uri: redirectUri,
-      grant_type: 'authorization_code'
-    }, {
-      headers: { 'Accept': 'application/json' }
-    });
-
-    const { access_token, refresh_token } = tokenResponse.data;
-
-    // Upsert the connection in the database
-    const existingConnection = await prisma.connection.findFirst({
-      where: { organizationId, source }
-    });
-
-    if (existingConnection) {
-      await prisma.connection.update({
-        where: { id: existingConnection.id },
-        data: {
-          accessToken: access_token,
-          refreshToken: refresh_token || existingConnection.refreshToken,
-          status: 'connected',
-          updatedAt: new Date()
+    let tokenResponse;
+    if (source === 'notion') {
+      tokenResponse = await axios.post(config.oauth.tokenUrl, {
+        code,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      }, {
+        headers: { 
+          'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json'
         }
       });
     } else {
-      await prisma.connection.create({
-        data: {
-          organizationId,
-          source,
-          status: 'connected',
-          accessToken: access_token,
-          refreshToken: refresh_token || null
-        }
+      tokenResponse = await axios.post(config.oauth.tokenUrl, {
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      }, {
+        headers: { 'Accept': 'application/json' }
       });
     }
+
+    const { access_token, refresh_token } = tokenResponse.data;
+
+    // Ensure organization exists (for development fallback)
+    await prisma.organization.upsert({
+      where: { id: organizationId },
+      update: {},
+      create: { id: organizationId, name: 'Default Organization' }
+    });
+
+    // Upsert the connection in the database
+    await prisma.connection.upsert({
+      where: { 
+        id: (await prisma.connection.findFirst({ where: { organizationId, source } }))?.id || 'new-conn'
+      },
+      update: {
+        accessToken: access_token,
+        refreshToken: refresh_token || undefined,
+        status: 'connected',
+        updatedAt: new Date()
+      },
+      create: {
+        organizationId,
+        source,
+        status: 'connected',
+        accessToken: access_token,
+        refreshToken: refresh_token || null
+      }
+    });
+
 
     // Redirect back to frontend connections page
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connections?success=true&source=${source}`);

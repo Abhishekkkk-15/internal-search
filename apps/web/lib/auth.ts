@@ -6,7 +6,6 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@nexus/database";
 
 const authSecret = process.env.NEXTAUTH_SECRET;
-console.log(authSecret);
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
 

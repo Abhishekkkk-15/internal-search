@@ -13,7 +13,7 @@ import { SourceType } from '@nexus/types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'http://localhost:3002/api';
 
 // Predefined static config for display purposes
 const staticConfigs: Record<SourceType, { interval: string; description: string }> = {
@@ -48,8 +48,13 @@ export default function ConnectionsPage() {
   const { data: dbConnections, isLoading } = useQuery({
     queryKey: ['integrations', orgId],
     queryFn: async () => {
+      // @ts-ignore
+      const token = session?.accessToken;
       const res = await fetch(`${API_BASE}/integrations`, {
-        headers: { 'X-Organization-Id': orgId }
+        headers: { 
+          'X-Organization-Id': orgId,
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (!res.ok) throw new Error('Failed to fetch integrations');
       const json = await res.json();
@@ -61,9 +66,14 @@ export default function ConnectionsPage() {
   // Disconnect Mutation
   const disconnectMutation = useMutation({
     mutationFn: async (source: SourceType) => {
+      // @ts-ignore
+      const token = session?.accessToken;
       const res = await fetch(`${API_BASE}/integrations/${source}/disconnect`, {
         method: 'POST',
-        headers: { 'X-Organization-Id': orgId }
+        headers: { 
+          'X-Organization-Id': orgId,
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (!res.ok) throw new Error('Failed to disconnect');
       return res.json();
@@ -82,9 +92,14 @@ export default function ConnectionsPage() {
   // Sync Mutation
   const syncMutation = useMutation({
     mutationFn: async () => {
+      // @ts-ignore
+      const token = session?.accessToken;
       const res = await fetch(`${API_BASE}/integrations/sync`, {
         method: 'POST',
-        headers: { 'X-Organization-Id': orgId }
+        headers: { 
+          'X-Organization-Id': orgId,
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (!res.ok) throw new Error('Failed to start sync');
       return res.json();

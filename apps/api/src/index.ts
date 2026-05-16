@@ -20,8 +20,6 @@ app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.use(authmiddleware); // Apply authentication middleware to all routes
-
 app.use("/api", routes);
 
 app.use(notFound);
