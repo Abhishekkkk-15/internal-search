@@ -17,7 +17,23 @@ import {
 } from 'lucide-react';
 import { SearchBar, SourceIcon, LoadingSkeleton } from '@nexus/ui';
 import { SourceType } from '@nexus/types';
-import { ExtendedSearchResult } from '../api/search/route';
+import { useSession } from 'next-auth/react';
+
+const API_BASE = 'http://localhost:3002/api';
+
+export interface ExtendedSearchResult {
+  id: string;
+  title: string;
+  content: string;
+  snippet?: string;
+  source: SourceType;
+  rrf_score: number;
+  semantic_score: number;
+  keyword_score: number;
+  url: string;
+  createdAt: string;
+  author: string;
+}
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
@@ -45,31 +61,37 @@ export default function SearchPage() {
     setPage(1);
   };
 
-  // Fetch search items via TanStack Query
+  const { data: session } = useSession();
+  const organizationId = session?.user?.organizationId || 'org_default';
+
+  // Fetch search items via Real Backend Hybrid Search
   const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: ['hybridSearch', searchTrigger, selectedSources, authorFilter, dateRange, page],
+    queryKey: ['hybridSearch', searchTrigger, selectedSources, page],
     queryFn: async () => {
-      const res = await fetch('/api/search', {
+      if (!searchTrigger) return { data: [], metadata: { count: 0 } };
+
+      const res = await fetch(`${API_BASE}/chat/search`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.accessToken}`,
+          'X-Organization-Id': organizationId
+        },
         body: JSON.stringify({
           query: searchTrigger,
-          sources: selectedSources,
-          author: authorFilter,
-          dateRange,
-          page,
-          limit: 6,
+          scope: selectedSources,
         }),
       });
       if (!res.ok) throw new Error('Failed to retrieve search data payload');
       return res.json();
     },
+    enabled: !!session?.accessToken,
     placeholderData: (prev) => prev,
   });
 
-  const results: ExtendedSearchResult[] = data?.results || [];
-  const totalPages = data?.totalPages || 1;
-  const totalCount = data?.totalCount || 0;
+  const results: any[] = data?.data || [];
+  const totalCount = data?.metadata?.count || 0;
+  const totalPages = Math.ceil(totalCount / 10) || 1;
 
   return (
     <div className="space-y-6">
@@ -196,9 +218,17 @@ export default function SearchPage() {
               <div className={viewMode === 'list' ? 'flex-1 min-w-0 space-y-2' : 'space-y-3'}>
                 <div className="flex items-center justify-between gap-2">
                   <SourceIcon source={doc.source} showLabel={true} />
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-100 dark:border-indigo-900/60">
-                    {Math.round(doc.relevanceScore * 100)}% match
-                  </span>
+                  <div className="flex gap-1.5">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/60" title="Keyword Match Score">
+                      K: {Math.round(Number(doc.keyword_score || 0) * 100)}%
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60" title="Semantic Vector Score">
+                      V: {Math.round(Number(doc.semantic_score || 0) * 100)}%
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500 text-white font-bold" title="Fused RRF Rank Score">
+                      RRF: {Number(doc.rrf_score || 0).toFixed(3)}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -268,8 +298,14 @@ export default function SearchPage() {
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <SourceIcon source={expandedDoc.source} showLabel={true} />
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold">
-                      Vector score: {expandedDoc.relevanceScore}
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500 text-white font-bold">
+                      RRF Rank Score: {Number(expandedDoc.rrf_score || 0).toFixed(4)}
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
+                      Vector: {Math.round(Number(expandedDoc.semantic_score || 0) * 100)}%
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+                      Keyword: {Math.round(Number(expandedDoc.keyword_score || 0) * 100)}%
                     </span>
                   </div>
                   <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">

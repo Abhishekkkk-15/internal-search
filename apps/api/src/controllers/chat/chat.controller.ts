@@ -129,13 +129,40 @@ ${contextText}`;
         userId: user?.id
       },
       include:{
-        messages: true
-      }
+        messages: {
+          orderBy: { timestamp: 'asc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     })
 
     const pay = conversations ? conversations : []
     return res.status(200).json({pay})
   }
 
+  async handleSearch(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { query, scope } = req.body;
+      const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+
+      if (!query) {
+        return res.status(400).json({ message: "Query is required" });
+      }
+
+      const results = await embeddingService.searchDocuments(query, organizationId, scope || [], 10);
+
+      return res.status(200).json({
+        data: results,
+        metadata: {
+          count: results.length,
+          query,
+          method: "Hybrid (pgvector + tsvector via RRF)"
+        }
+      });
+    } catch (error) {
+      console.error("Error in hybrid search:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
 
 }
