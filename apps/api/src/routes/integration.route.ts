@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getIntegrations, connectIntegration, integrationCallback, disconnectIntegration, triggerSync } from '../controllers/integrations/integration.controller';
+import { getIntegrations, connectIntegration, integrationCallback, disconnectIntegration, triggerSync, updateSchedule } from '../controllers/integrations/integration.controller';
 import { authmiddleware } from '../middleware/auth';
 
 const router: Router = Router();
@@ -9,6 +9,9 @@ router.get('/', authmiddleware, getIntegrations);
 
 // Trigger manual sync (Protected)
 router.post('/sync', authmiddleware, triggerSync);
+
+// Update sync schedule (Protected)
+router.post('/schedule', authmiddleware, updateSchedule);
 
 // OAuth Handshake start (Public - accessed via browser redirect)
 router.get('/:source/connect', connectIntegration);

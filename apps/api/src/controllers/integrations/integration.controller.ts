@@ -180,9 +180,61 @@ export const triggerSync = async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
+  // Fetch org to check plan for priority
+  const org = await prisma.organization.findUnique({ 
+    where: { id: organizationId },
+    select: { plan: true }
+  });
+
+  // Pro users get higher priority (1 vs 10)
+  const priority = org?.plan === 'pro' ? 1 : 10;
+
   // Add job to BullMQ
-  await syncQueue.add(`sync-${organizationId}`, { organizationId });
+  await syncQueue.add(`sync-${organizationId}`, { organizationId }, { 
+    priority,
+    removeOnComplete: true 
+  });
   
-  res.json({ success: true, message: 'Sync job queued in BullMQ' });
+  res.json({ success: true, message: `Sync job queued with ${org?.plan || 'free'} priority` });
+};
+
+// 5. Update Sync Schedule
+export const updateSchedule = async (req: Request, res: Response): Promise<void> => {
+  const organizationId = req.headers['x-organization-id'] as string;
+  const { source, schedule } = req.body; // e.g., "0 0 * * *" for daily
+  const { syncQueue } = require('../../queues/sync.queue');
+
+  if (!organizationId || !source) {
+    res.status(400).json({ error: 'Missing organizationId or source' });
+    return;
+  }
+
+  // 1. Update the database
+  await prisma.connection.updateMany({
+    where: { organizationId, source },
+    data: { syncSchedule: schedule }
+  });
+
+  // 2. Manage BullMQ repeatable jobs
+  // First, remove existing repeatable jobs for this connection
+  const repeatableJobs = await syncQueue.getRepeatableJobs();
+  const existingJob = repeatableJobs.find((j: any) => j.name === `sync-${organizationId}-${source}`);
+  if (existingJob) {
+    await syncQueue.removeRepeatableByKey(existingJob.key);
+  }
+
+  // Add new repeatable job if schedule is provided
+  if (schedule) {
+    await syncQueue.add(
+      `sync-${organizationId}-${source}`,
+      { organizationId, source },
+      { 
+        repeat: { pattern: schedule },
+        removeOnComplete: true
+      }
+    );
+  }
+
+  res.json({ success: true, message: schedule ? `Schedule updated to ${schedule}` : 'Schedule removed' });
 };
 
