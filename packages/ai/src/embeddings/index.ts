@@ -1,6 +1,6 @@
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { getNvidiaEmbedClient, CHAT_MODELS } from "../client";
-import { prisma } from "@nexus/database";
+import { prisma, Prisma } from "@nexus/database";
 
 class EmbeddingService {
     private openai: OpenAIEmbeddings;
@@ -43,7 +43,7 @@ class EmbeddingService {
         return result.data.map((item: any) => item.embedding);
     }
 
-    async searchDocuments(query: string, limit: number = 5){
+    async searchDocuments(query: string, organizationId: string, sources: string[] = [], limit: number = 5){
         const apiKey = process.env.INVDIA_API_KEY;
 
         // 1. Convert the query text into a vector using 'query' input_type
@@ -79,15 +79,18 @@ class EmbeddingService {
 
 
         // 2. Perform a cosine distance (<=>) search against our PostgreSQL database
+        // We filter by organizationId AND optionally by source list
         const documents = await prisma.$queryRaw`
             SELECT id, title, content, source, url, author, 
                    1 - (embedding <=> ${embeddingString}::vector) as similarity
             FROM "Document"
+            WHERE "organizationId" = ${organizationId}
+            ${sources.length > 0 ? Prisma.raw(`AND source IN (${sources.map(s => `'${s}'`).join(',')})`) : Prisma.raw('')}
             ORDER BY embedding <=> ${embeddingString}::vector
             LIMIT ${limit};
         `;
 
-        return documents;
+        return documents as any[];
     }
 
 }

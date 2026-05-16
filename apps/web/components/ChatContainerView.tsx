@@ -15,6 +15,10 @@ import {
 } from 'lucide-react';
 import { Message, SourceType, SearchResult, Action } from '@nexus/types';
 import { MessageBubble, SourceSelector, SourceIcon } from '@nexus/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
+
+const API_BASE = 'http://localhost:3002/api';
 
 interface ChatContainerViewProps {
   initialThreadId?: string;
@@ -111,28 +115,40 @@ const mockThreadsData: Record<string, { title: string; messages: Message[] }> = 
 };
 
 export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
+  const { data: session } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const initialPrompt = searchParams?.get('prompt') || '';
+  const orgId = session?.user?.organizationId || 'org_default';
 
-  const [threads, setThreads] = useState([
-    { id: 'thread-1', title: 'Authentication gateway token rotation review', time: '12 mins ago' },
-    { id: 'thread-2', title: 'Figma visual layout workspace export synchronization', time: '3 hours ago' },
-    { id: 'thread-3', title: 'Webhook backoff policies integration test setup', time: 'Yesterday' },
+  // 1. Fetch Conversations (Threads)
+  const { data: threadsData, isLoading: threadsLoading } = useQuery({
+    queryKey: ['conversations', session?.user?.id],
+    queryFn: async () => {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${API_BASE}/chat/conversations`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'X-Organization-Id': orgId
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch conversations');
+      const json = await res.json();
+      return json.pay as any[];
+    },
+    enabled: !!session?.user,
+  });
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome-init',
+      role: 'assistant',
+      content: "Hello! I am **Nexus Assistant**, your autonomous enterprise data connector. I have full read/write access scopes configured across your Slack, Notion, GitHub, Google Drive, and Jira layers.\n\nHow can I streamline your workload today?",
+      timestamp: new Date(),
+    },
   ]);
-
-  const currentActiveThread = initialThreadId ? mockThreadsData[initialThreadId] : null;
-
-  const [messages, setMessages] = useState<Message[]>(
-    currentActiveThread?.messages || [
-      {
-        id: 'welcome-init',
-        role: 'assistant',
-        content: "Hello! I am **Nexus Assistant**, your autonomous enterprise data connector. I have full read/write access scopes configured across your Slack, Notion, GitHub, Google Drive, and Jira layers.\n\nHow can I streamline your workload today?",
-        timestamp: new Date(),
-      },
-    ]
-  );
 
   const [input, setInput] = useState('');
   const [selectedScope, setSelectedScope] = useState<SourceType[]>(['slack', 'notion', 'github', 'drive', 'jira']);
@@ -148,6 +164,19 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
     'Scan documentation for Next.js 15 routing gateway errors.',
   ];
 
+  // Load messages if threadId is provided
+  useEffect(() => {
+    if (initialThreadId && threadsData) {
+      const thread = threadsData.find(t => t.id === initialThreadId);
+      if (thread && thread.messages) {
+        setMessages(thread.messages.map((m: any) => ({
+          ...m,
+          timestamp: new Date(m.timestamp)
+        })));
+      }
+    }
+  }, [initialThreadId, threadsData]);
+
   // Scroll smoothly to latest buffer outputs
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -161,35 +190,12 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
   useEffect(() => {
     if (initialPrompt && messages.length <= 1 && !isStreaming) {
       setInput(initialPrompt);
-      // clean parameter mapping
       router.replace('/chat');
-      // trigger dispatch after short state settle
       setTimeout(() => {
         handleSubmitQuery(initialPrompt);
       }, 100);
     }
   }, [initialPrompt]);
-
-  const handleConfirmAction = (msgId: string, actionIdx: number) => {
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.id === msgId && m.actions) {
-          const updatedActions = [...m.actions];
-          updatedActions[actionIdx] = {
-            ...updatedActions[actionIdx],
-            status: 'completed',
-            result: {
-              ...updatedActions[actionIdx].result,
-              message: updatedActions[actionIdx].result?.message || 'Confirmed trigger execution',
-              details: 'Manual verification confirmed payload pipeline.',
-            },
-          };
-          return { ...m, actions: updatedActions };
-        }
-        return m;
-      })
-    );
-  };
 
   const handleSubmitQuery = async (overrideText?: string) => {
     const textToSend = overrideText || input;
@@ -215,17 +221,22 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
     setInput('');
     setIsStreaming(true);
 
-    // Reset textarea sizes
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
 
     try {
-      const response = await fetch('/api/chat', {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const response = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Organization-Id': orgId
+        },
         body: JSON.stringify({
-          messages: [...messages, userMsg],
+          messages: [...messages, userMsg].filter(m => m.id !== 'welcome-init'),
           scope: selectedScope,
         }),
       });
@@ -264,11 +275,6 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
                       ...msg,
                       searchResults: parsed.data,
                     };
-                  } else if (parsed.type === 'actions') {
-                    return {
-                      ...msg,
-                      actions: parsed.data,
-                    };
                   }
                 }
                 return msg;
@@ -279,28 +285,20 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
           }
         }
       }
+      
+      // Invalidate queries to refresh sidebar
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
     } catch (err) {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === placeholderAssistantId
-            ? { ...msg, content: '⚠️ Disconnected from streaming response orchestrator. Please verify active backend endpoints.' }
+            ? { ...msg, content: '⚠️ Connection lost. Please verify your internet or backend status.' }
             : msg
         )
       );
     } finally {
       setIsStreaming(false);
-
-      // Create tracking sidebar history list element if creating new session
-      if (!initialThreadId && messages.length <= 2) {
-        setThreads((prev) => [
-          {
-            id: `thread-${Date.now()}`,
-            title: textToSend.slice(0, 45) + (textToSend.length > 45 ? '...' : ''),
-            time: 'Just now',
-          },
-          ...prev,
-        ]);
-      }
     }
   };
 
@@ -336,7 +334,11 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-          {threads.map((t) => {
+          {threadsLoading ? (
+            <div className="flex items-center justify-center h-20">
+              <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+            </div>
+          ) : threadsData?.map((t) => {
             const isCurrent = initialThreadId === t.id;
             return (
               <button
@@ -356,7 +358,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
                 </div>
                 <span className="text-[10px] text-slate-400 pl-5 flex items-center gap-1">
                   <Clock className="w-2.5 h-2.5" />
-                  {t.time}
+                  {new Date(t.createdAt).toLocaleDateString()}
                 </span>
               </button>
             );
@@ -371,7 +373,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
           <div className="flex items-center gap-2">
             <Bot className="w-4 h-4 text-indigo-500" />
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200 tracking-tight">
-              {currentActiveThread ? currentActiveThread.title : 'Active Dialog Agent'}
+              {initialThreadId ? threadsData?.find(t => t.id === initialThreadId)?.title : 'Active Dialog Agent'}
             </span>
           </div>
 
@@ -393,7 +395,6 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
                   key={msg.id || index}
                   message={msg}
                   isTyping={isAssistantTyping}
-                  onConfirmAction={(actionIdx) => handleConfirmAction(msg.id, actionIdx)}
                 />
               );
             })}

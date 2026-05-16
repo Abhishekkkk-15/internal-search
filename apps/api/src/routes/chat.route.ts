@@ -8,6 +8,6 @@ const router: Router = Router();
 router.use(authmiddleware);
 
 router.get("/conversations", (req, res) => chat.getConversations(req, res));
-router.post("/chat", (req, res) => chat.handleChat(req, res));
+router.post("/", (req, res) => chat.handleChat(req, res));
 
 export default router;

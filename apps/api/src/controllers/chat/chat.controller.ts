@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { getNvidiaChatClient, CHAT_MODELS } from "@nexus/ai";
+import { getNvidiaChatClient, CHAT_MODELS, embeddingService } from "@nexus/ai";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "@nexus/database";
 
@@ -14,17 +14,16 @@ export class ChatController {
   }
 
   async handleChat(req: AuthenticatedRequest, res: Response) {
-    console.log("got here");
-
     try {
-      const { messages } = req.body;
+      const { messages, scope } = req.body;
       const userId = req.user?.id;
+      const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
 
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      // Get or create conversation
+      // 1. Get or create conversation
       let conversation = await prisma.conversation.findFirst({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -36,29 +35,90 @@ export class ChatController {
         });
       }
 
-      const response = await this.agent.invoke(
-        messages.map((msg: { role: string; content: string }) => ({
+      // 2. Extract user query
+      const userQuery = messages[messages.length - 1].content;
+      
+      // 3. Search Context (RAG) with Source Filtering
+      const contextDocs = await embeddingService.searchDocuments(userQuery, organizationId, scope || [], 3);
+      
+      const contextText = contextDocs.length > 0 
+        ? contextDocs.map((doc: any) => `Source: ${doc.title}\nContent: ${doc.content}`).join("\n\n")
+        : "No relevant documents found.";
+
+      // 4. Set Headers for Streaming
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Transfer-Encoding', 'chunked');
+
+      // 5. Stream the response
+      const systemPrompt = `You are Nexus Assistant, a premium AI expert. 
+Answer the user's question based ONLY on the following context.
+CONTEXT:
+${contextText}`;
+
+      const stream = await this.agent.stream([
+        { role: "system", content: systemPrompt },
+        ...messages.map((msg: { role: string; content: string }) => ({
           role: msg.role,
           content: msg.content,
-          options: {},
-        })),
-      );
+        }))
+      ]);
+
+      let fullContent = "";
+
+      // Send search results first
+      res.write(JSON.stringify({ 
+        type: 'searchResults', 
+        data: contextDocs.map((d: any) => ({ 
+          id: d.id,
+          title: d.title, 
+          url: d.url,
+          source: d.source,
+          snippet: d.content?.substring(0, 200) + "...",
+          relevanceScore: d.similarity || 0,
+          author: d.author || "System"
+        })) 
+      }) + "\n");
+
+      for await (const chunk of stream) {
+        const content = chunk.content as string;
+        fullContent += content;
+        res.write(JSON.stringify({ type: 'text', content }) + "\n");
+      }
+
+      // 6. Persist final messages in background
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: "user",
+          content: userQuery,
+        },
+      });
 
       await prisma.message.create({
         data: {
           conversationId: conversation.id,
           role: "assistant",
-          content: response.text,
+          content: fullContent,
+          searchResults: contextDocs.map((d: any) => ({ 
+            id: d.id,
+            title: d.title, 
+            url: d.url,
+            source: d.source,
+            snippet: d.content?.substring(0, 200) + "...",
+            relevanceScore: d.similarity || 0,
+            author: d.author || "System"
+          })),
         },
       });
 
-      return res.status(200).json(response);
+      res.end();
     } catch (error) {
       console.error("Error handling chat request:", error);
-
-      return res.status(500).json({
-        message: "Internal server error",
-      });
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Internal server error" });
+      } else {
+        res.end();
+      }
     }
   }
 
