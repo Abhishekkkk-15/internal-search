@@ -15,24 +15,54 @@ import {
   FolderSync,
   Clock,
   ArrowRight,
+  FileText
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { StatusBadge, SourceIcon } from '@nexus/ui';
 import { SourceType } from '@nexus/types';
+import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
+
+const API_BASE = 'http://localhost:3002/api';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userId = session?.user?.id || 'user_default';
 
-  // Dashboard stats
+  // Fetch real dynamic analytics from Express backend
+  const { data: analyticsData, isLoading } = useQuery({
+    queryKey: ['dashboardAnalytics', userId],
+    queryFn: async () => {
+      // @ts-ignore
+      const token = session?.accessToken;
+      const res = await fetch(`${API_BASE}/analytics/dashboard`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-User-Id': userId
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch analytics');
+      return res.json();
+    },
+    enabled: !!session?.user
+  });
+
+  const connectedSourcesCount = analyticsData?.stats?.connectedSourcesCount || 0;
+  const indexedDocumentsCount = analyticsData?.stats?.indexedDocumentsCount || 0;
+  const conversationsCount = analyticsData?.stats?.conversationsCount || 0;
+  const messagesCount = analyticsData?.stats?.messagesCount || 0;
+
+  // Dynamic Dashboard Stats
   const stats = [
-    { title: 'Connected Sources', value: '0 Platforms', change: 'Configure in Connections', icon: Database, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-    { title: 'Recent Queries', value: '0', change: 'No queries logged yet', icon: MessageSquare, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { title: 'Actions Executed', value: '0', change: 'Automated tasks queue', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-    { title: 'Success Rate', value: '100%', change: 'All systems operational', icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { title: 'Connected Sources', value: `${connectedSourcesCount} Platforms`, change: 'Slack, Notion, GitHub', icon: Database, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+    { title: 'Indexed Documents', value: `${indexedDocumentsCount}`, change: 'Vector & Full-text Indexed', icon: FileText, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { title: 'Chat Conversations', value: `${conversationsCount}`, change: `${messagesCount} user messages`, icon: MessageSquare, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    { title: 'System Status', value: '100%', change: 'All services operational', icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   ];
 
-  // Analytic graph values
-  const chartData = [
+  // Analytic graph values (default or live)
+  const chartData = analyticsData?.chartData || [
     { day: 'Mon', queries: 0, actions: 0 },
     { day: 'Tue', queries: 0, actions: 0 },
     { day: 'Wed', queries: 0, actions: 0 },
@@ -42,36 +72,36 @@ export default function DashboardPage() {
     { day: 'Sun', queries: 0, actions: 0 },
   ];
 
-  // Quick Action triggers
+  // Quick Action triggers targeting Slack, Notion, GitHub
   const quickActions = [
     {
-      title: 'Summarize unread Slack',
-      description: 'Scan primary Slack engineering channels and draft summary task tickets.',
-      prompt: 'Summarize my unread Slack threads and create Jira tickets for action items.',
+      title: 'Search Recent Slack Discussions',
+      description: 'Find discussion threads, team updates, and messages across Slack channels.',
+      prompt: 'Summarize recent discussions and updates from Slack.',
       icon: MessageSquare,
       bg: 'hover:border-purple-500/40 hover:bg-purple-50/20 dark:hover:bg-purple-950/10',
     },
     {
-      title: 'Scan Drive for new docs',
-      description: 'Index high-fidelity design prototypes and release specifications.',
-      prompt: 'Show me design files updated last week in Google Drive and Notion.',
+      title: 'Scan Notion Docs & Specs',
+      description: 'Search product requirements, engineering guides, and documentation.',
+      prompt: 'What are the main engineering specs and docs available in Notion?',
       icon: FolderSync,
       bg: 'hover:border-blue-500/40 hover:bg-blue-50/20 dark:hover:bg-blue-950/10',
     },
     {
-      title: 'Create weekly report',
-      description: 'Compile unread matrix pull requests and generate broadcast reports.',
-      prompt: 'Summarize recent workspace developments and generate markdown status reports.',
+      title: 'Review GitHub Issues & PRs',
+      description: 'Scan open pull requests, bug reports, and code updates on GitHub.',
+      prompt: 'Summarize recent GitHub issues and pull requests in our repositories.',
       icon: Activity,
       bg: 'hover:border-indigo-500/40 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/10',
     },
   ];
 
   // Recent threads
-  const recentConversations: { id: string; title: string; platform: SourceType; time: string; preview: string }[] = [];
+  const recentConversations = analyticsData?.recentConversations || [];
 
   // Connection sync statuses
-  const syncStatuses: { source: SourceType; status: 'connected' | 'syncing' | 'error' }[] = [];
+  const syncStatuses = analyticsData?.connections || [];
 
   const executeQuickAction = (prompt: string) => {
     router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
@@ -99,241 +129,225 @@ export default function DashboardPage() {
             Welcome back to <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Nexus Assistant</span>
           </h2>
 
-          <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
-            Your centralized multi-modal operational brain is fully synced. Query documentation, generate automated Jira/Slack dispatch actions, or search vector databases instantly.
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            Your unified internal search engine is active across connected Slack, Notion, and GitHub repositories.
           </p>
 
-          <div className="pt-2 flex flex-wrap gap-3">
-            <Link
-              href="/chat"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-500/20 transition-all"
+          <div className="pt-2 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => router.push('/chat')}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-500/20 transition-all flex items-center gap-2"
             >
-              <span>New Natural Query</span>
-              <ArrowUpRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/search"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-slate-900/80 hover:bg-white dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-800 transition-all"
+              <MessageSquare className="w-4 h-4" />
+              <span>Start New Chat</span>
+            </button>
+            <button
+              onClick={() => router.push('/search')}
+              className="px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl text-xs font-semibold transition-all flex items-center gap-2"
             >
-              <span>Explore Data Vector Graph</span>
-            </Link>
+              <Database className="w-4 h-4 text-indigo-500" />
+              <span>Explore Documents</span>
+            </button>
           </div>
         </div>
       </motion.div>
 
-      {/* Stats row */}
+      {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((st, i) => {
-          const IconComponent = st.icon;
+        {stats.map((stat, i) => {
+          const Icon = stat.icon;
           return (
             <motion.div
-              key={st.title}
+              key={stat.title}
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md shadow-2xs space-y-3"
+              className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl shadow-sm hover:shadow-md transition-all space-y-3"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tracking-wide">
-                  {st.title}
-                </span>
-                <div className={`p-2 rounded-xl ${st.bg} ${st.color}`}>
-                  <IconComponent className="w-4 h-4" />
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{stat.title}</span>
+                <div className={`p-2 rounded-xl ${stat.bg} ${stat.color}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
               </div>
-
-              <div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {st.value}
-                </div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1">
-                  {st.change}
-                </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{stat.value}</h3>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">{stat.change}</p>
               </div>
             </motion.div>
           );
         })}
       </div>
 
-      {/* Middle Workspace: Analytics Charts & Sync telemetry Matrix */}
+      {/* Main Analytics Graph & Quick Triggers Partition */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recharts Area Analytics Graph */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="lg:col-span-2 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md space-y-4"
-        >
+        {/* Left: Recharts 7-Day Activity Chart */}
+        <div className="lg:col-span-2 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                Nexus Queries & Triggers Volume
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-500" />
+                7-Day Query Activity
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Aggregated deep graph queries processed over past 7 days
-              </p>
+              <p className="text-[11px] text-slate-400">Total search queries executed by day</p>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
-                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                Queries
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                Automated Actions
-              </span>
-            </div>
+            <span className="text-[10px] font-mono px-2 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 font-semibold">
+              Live Feed
+            </span>
           </div>
 
           <div className="h-64 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="queryColor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="actionColor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  <linearGradient id="queryGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.1)" />
-                <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.15} />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    backgroundColor: '#0f172a',
+                    borderColor: '#1e293b',
                     borderRadius: '12px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#fff',
                     fontSize: '12px',
+                    color: '#f8fafc',
                   }}
                 />
-                <Area type="monotone" dataKey="queries" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#queryColor)" />
-                <Area type="monotone" dataKey="actions" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#actionColor)" />
+                <Area type="monotone" dataKey="queries" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#queryGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Live sync telemetries indicators dashboard */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md flex flex-col justify-between space-y-4"
-        >
+        {/* Right: Quick Action Triggers */}
+        <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl shadow-sm space-y-4 flex flex-col justify-between">
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-              Source Synchronization Status
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" />
+              Quick Action Triggers
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Live heartbeat telemetry buffers monitoring RAG targets
-            </p>
+            <p className="text-[11px] text-slate-400">Launch standard prompts directly into Chat Assistant</p>
           </div>
 
-          <div className="space-y-3.5 my-auto">
-            {syncStatuses.map((st) => (
-              <div key={st.source} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                <SourceIcon source={st.source} showLabel={true} />
-                <StatusBadge status={st.status} />
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 text-center">
-            <Link
-              href="/connections"
-              className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline inline-flex items-center gap-1"
-            >
-              <span>Manage Enterprise Connections</span>
-              <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Lower section: Quick action shortcuts & Recent conversation history threads */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick actions stack */}
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-              Quick Prompt Automations
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              One-click execute deep assistant pipelines
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {quickActions.map((act) => {
-              const ActIcon = act.icon;
+          <div className="space-y-3 py-2">
+            {quickActions.map((qa, idx) => {
+              const Icon = qa.icon;
               return (
                 <button
-                  key={act.title}
-                  onClick={() => executeQuickAction(act.prompt)}
-                  className={`w-full text-left p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 backdrop-blur-sm transition-all group block ${act.bg}`}
+                  key={idx}
+                  onClick={() => executeQuickAction(qa.prompt)}
+                  className={`w-full text-left p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/40 dark:bg-slate-900/40 ${qa.bg} transition-all group flex items-start justify-between gap-3`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shrink-0">
-                      <ActIcon className="w-4 h-4" />
-                    </div>
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                          {act.title}
-                        </h4>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal line-clamp-2">
-                        {act.description}
-                      </p>
-                    </div>
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                      <span className="truncate">{qa.title}</span>
+                    </span>
+                    <p className="text-[11px] text-slate-400 line-clamp-1">{qa.description}</p>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all shrink-0 mt-0.5" />
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Recent Active Conversations list */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="space-y-1">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-              Recent Workspace Dialogues
+          <Link
+            href="/chat"
+            className="w-full py-2.5 px-4 text-center rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-slate-200/60 dark:border-slate-800 text-xs font-semibold transition-all block"
+          >
+            Open Full Chat Workspace →
+          </Link>
+        </div>
+      </div>
+
+      {/* Bottom Partition: Recent Threads & Connections Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Conversations */}
+        <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-3">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-500" />
+              Recent Conversations
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Resume recent RAG lookups and workflow evaluations
-            </p>
+            <Link href="/chat" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+              <span>View All</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
-          <div className="space-y-3">
-            {recentConversations.map((thread) => (
-              <Link
-                key={thread.id}
-                href={`/chat/${thread.id}`}
-                className="p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 backdrop-blur-sm hover:border-indigo-500/30 transition-all flex items-start justify-between gap-4 group block"
-              >
-                <div className="space-y-1.5 flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <SourceIcon source={thread.platform} showLabel={false} />
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
-                      {thread.title}
-                    </span>
+          <div className="space-y-2">
+            {recentConversations.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 space-y-1">
+                <MessageSquare className="w-6 h-6 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                <p>No recent conversations logged yet.</p>
+                <Link href="/chat" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">Start your first chat thread</Link>
+              </div>
+            ) : (
+              recentConversations.map((rc: any) => (
+                <Link
+                  key={rc.id}
+                  href={`/chat/${rc.id}`}
+                  className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900/60 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-800 transition-all group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 shrink-0">
+                      <MessageSquare className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                        {rc.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-400 truncate">{rc.preview}</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 pl-1">
-                    {thread.preview}
-                  </p>
-                </div>
+                  <span className="text-[10px] font-mono text-slate-400 shrink-0 ml-3">
+                    {new Date(rc.time).toLocaleDateString()}
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
 
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 shrink-0 pt-0.5">
-                  <Clock className="w-3 h-3" />
-                  <span>{thread.time}</span>
+        {/* Integration Sync Status */}
+        <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-3">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Database className="w-4 h-4 text-emerald-500" />
+              Connected Platform Status
+            </h3>
+            <Link href="/connections" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+              <span>Manage Connections</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="space-y-2.5">
+            {['slack', 'notion', 'github'].map((src) => {
+              const conn = syncStatuses.find((c: any) => c.source === src);
+              const isConnected = conn?.status === 'connected';
+              return (
+                <div
+                  key={src}
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/60"
+                >
+                  <div className="flex items-center gap-3">
+                    <SourceIcon source={src as SourceType} showLabel={false} />
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">{src}</h4>
+                      <p className="text-[10px] text-slate-400">
+                        {isConnected ? `${conn?.indexedCount || 0} items indexed` : 'Not connected'}
+                      </p>
+                    </div>
+                  </div>
+                  <StatusBadge status={isConnected ? 'connected' : 'disconnected'} />
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
