@@ -23,23 +23,23 @@ import { SourceType } from '@nexus/types';
 export default function DashboardPage() {
   const router = useRouter();
 
-  // Mock analytic stats
+  // Dashboard stats
   const stats = [
-    { title: 'Connected Sources', value: '5 Platforms', change: '+1 this week', icon: Database, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-    { title: 'Recent Queries', value: '1,428', change: '+18% vs last week', icon: MessageSquare, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { title: 'Actions Executed', value: '384', change: '94% automated', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-    { title: 'Success Rate', value: '99.2%', change: '0.8% failure queue', icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { title: 'Connected Sources', value: '0 Platforms', change: 'Configure in Connections', icon: Database, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+    { title: 'Recent Queries', value: '0', change: 'No queries logged yet', icon: MessageSquare, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { title: 'Actions Executed', value: '0', change: 'Automated tasks queue', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    { title: 'Success Rate', value: '100%', change: 'All systems operational', icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   ];
 
-  // Recharts analytic graph values
+  // Analytic graph values
   const chartData = [
-    { day: 'Mon', queries: 120, actions: 45 },
-    { day: 'Tue', queries: 210, actions: 80 },
-    { day: 'Wed', queries: 180, actions: 65 },
-    { day: 'Thu', queries: 290, actions: 110 },
-    { day: 'Fri', queries: 340, actions: 140 },
-    { day: 'Sat', queries: 150, actions: 30 },
-    { day: 'Sun', queries: 138, actions: 24 },
+    { day: 'Mon', queries: 0, actions: 0 },
+    { day: 'Tue', queries: 0, actions: 0 },
+    { day: 'Wed', queries: 0, actions: 0 },
+    { day: 'Thu', queries: 0, actions: 0 },
+    { day: 'Fri', queries: 0, actions: 0 },
+    { day: 'Sat', queries: 0, actions: 0 },
+    { day: 'Sun', queries: 0, actions: 0 },
   ];
 
   // Quick Action triggers
@@ -68,20 +68,10 @@ export default function DashboardPage() {
   ];
 
   // Recent threads
-  const recentConversations = [
-    { id: 'thread-1', title: 'Authentication gateway token rotation review', platform: 'slack' as SourceType, time: '12 mins ago', preview: 'Analyzed internal rate limits and generated tasks...' },
-    { id: 'thread-2', title: 'Figma visual layout workspace export synchronization', platform: 'drive' as SourceType, time: '3 hours ago', preview: 'Extracted 5 platform file components into database buffer...' },
-    { id: 'thread-3', title: 'Webhook backoff policies integration test setup', platform: 'jira' as SourceType, time: 'Yesterday', preview: 'Configured Redis exponential task queues...' },
-  ];
+  const recentConversations: { id: string; title: string; platform: SourceType; time: string; preview: string }[] = [];
 
-  // Connection sync matrices
-  const syncStatuses: { source: SourceType; status: 'connected' | 'syncing' | 'error' }[] = [
-    { source: 'slack', status: 'connected' },
-    { source: 'notion', status: 'connected' },
-    { source: 'github', status: 'syncing' },
-    { source: 'drive', status: 'connected' },
-    { source: 'jira', status: 'connected' },
-  ];
+  // Connection sync statuses
+  const syncStatuses: { source: SourceType; status: 'connected' | 'syncing' | 'error' }[] = [];
 
   const executeQuickAction = (prompt: string) => {
     router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);

@@ -50,7 +50,7 @@ export const useNexusStore = create<NexusState>()(
 
       llmProvider: 'openai',
       setLlmProvider: (provider) => set({ llmProvider: provider }),
-      apiKey: 'sk-mock-key-nexus-assistant-v2',
+      apiKey: '',
       setApiKey: (apiKey) => set({ apiKey }),
 
       toolsEnabled: {

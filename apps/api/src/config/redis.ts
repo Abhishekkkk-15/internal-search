@@ -2,12 +2,10 @@ import Redis from 'ioredis';
 import dotenv from 'dotenv';
 
 dotenv.config();
-
-const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null, // Required by BullMQ
-};
-
-export const redisConnection = new Redis(redisConfig);
+const REDIS_URL = process.env.REDIS_URL;
+if (!REDIS_URL) {
+  throw new Error("Missing REDIS_URL environment variable");
+}
+export const redisConnection = new Redis(REDIS_URL, {
+  maxRetriesPerRequest: null
+});

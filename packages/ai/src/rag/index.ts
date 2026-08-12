@@ -5,9 +5,9 @@ export class RagService {
   /**
    * Generates a response based on the query and retrieved context from documents.
    */
-  async generateResponse(query: string) {
+  async generateResponse(query: string, organizationId: string = "org_default") {
     // 1. Retrieve relevant documents using the embedding service
-    const documents = await embeddingService.searchDocuments(query, 5);
+    const documents = await embeddingService.searchDocuments(query, organizationId, [], 5);
 
     // 2. Extract content from documents to build the context
     const context = (documents as any[])

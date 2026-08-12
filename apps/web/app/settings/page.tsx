@@ -124,7 +124,7 @@ export default function SettingsPage() {
       timezone: "America/Los_Angeles",
       language: "en-US",
       llmProvider: "openai",
-      apiKey: "sk-proj-nexus-enterprise-mock-key-v2",
+      apiKey: "",
       tools: {
         jira: true,
         slack: true,
@@ -151,7 +151,7 @@ export default function SettingsPage() {
         timezone: settings.timezone,
         language: settings.language,
         llmProvider: settings.llmProvider as any,
-        apiKey: "sk-proj-nexus-enterprise-mock-key-v2", // Keep mock for now
+        apiKey: "",
         tools: {
           jira: enabledTools.jira ?? true,
           slack: enabledTools.slack ?? true,
@@ -164,24 +164,8 @@ export default function SettingsPage() {
     }
   }, [settings, reset]);
 
-  // Watch selected provider to prepopulate placeholder strings dynamically
+  // Watch selected provider
   const watchedProvider = watch("llmProvider");
-
-  useEffect(() => {
-    if (watchedProvider === "openai") {
-      setValue("apiKey", "sk-proj-nexus-enterprise-mock-key-v2", {
-        shouldValidate: true,
-      });
-    } else if (watchedProvider === "anthropic") {
-      setValue("apiKey", "sk-ant-api03-nexus-mock-credential", {
-        shouldValidate: true,
-      });
-    } else {
-      setValue("apiKey", "local-llama3-weights-bypass-token", {
-        shouldValidate: true,
-      });
-    }
-  }, [watchedProvider, setValue]);
 
   // Handle Form submittal payload processing
   const onSubmit = async (data: SettingsFormValues) => {

@@ -12,10 +12,10 @@ export const syncWorker = new Worker(
 
     // 1. Find all active connections for this org
     const connections = await prisma.connection.findMany({
-      where: { 
+      where: {
         organizationId,
-        status: 'connected', 
-        accessToken: { not: null } 
+        status: 'connected',
+        accessToken: { not: null }
       }
     });
 
@@ -26,7 +26,7 @@ export const syncWorker = new Worker(
 
     for (const connection of connections) {
       console.log(`[Sync Worker] Syncing ${connection.source} for Org ${organizationId}...`);
-      
+
       let rawDocuments: any[] = [];
 
       try {
@@ -61,7 +61,7 @@ export const syncWorker = new Worker(
             // Generate embedding for the content
             const embeddings = await embeddingService.generateEmbeddings([truncatedContent]);
             if (!embeddings || embeddings.length === 0) continue;
-            
+
             const embedding = embeddings[0];
             const embeddingString = `[${embedding.join(',')}]`;
 
@@ -87,7 +87,7 @@ export const syncWorker = new Worker(
         // 4. Update sync stats
         await prisma.connection.update({
           where: { id: connection.id },
-          data: { 
+          data: {
             lastSync: new Date(),
             indexedCount: { increment: rawDocuments.length }
           }

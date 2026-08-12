@@ -110,11 +110,12 @@ ${contextText}`;
             content: `\n\n> 🛠️ **Nexus Action Triggered:** ${toolCall.name}\n> Parameters: ${JSON.stringify(toolCall.args)}\n\n` 
           }) + "\n");
           
-          // Execute actual tool (Mock)
-          let toolResult = "";
-          if (toolCall.name === "create_jira_ticket") toolResult = `Successfully created Jira ticket: ${toolCall.args.title}`;
-          if (toolCall.name === "send_slack_message") toolResult = `Sent Slack message to #${toolCall.args.channel}`;
-          if (toolCall.name === "update_notion_page") toolResult = `Updated Notion page ${toolCall.args.pageId}`;
+          // Execute tool dynamically
+          let toolResult = `Executed tool: ${toolCall.name}`;
+          const matchingTool = availableTools.find((t: any) => t.name === toolCall.name);
+          if (matchingTool) {
+            toolResult = await matchingTool.invoke(toolCall.args);
+          }
 
           fullContent += `\n[Tool Executed: ${toolCall.name} - ${toolResult}]\n`;
           res.write(JSON.stringify({ type: 'text', content: `✅ ${toolResult}\n\n` }) + "\n");

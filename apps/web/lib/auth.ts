@@ -11,14 +11,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   providers: [
     GitHubProvider({
-      clientId: process.env.GITHUB_ID || "mock_github_id_placeholder",
-      clientSecret:
-        process.env.GITHUB_SECRET || "mock_github_secret_placeholder",
+      clientId: process.env.GITHUB_ID || "",
+      clientSecret: process.env.GITHUB_SECRET || "",
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "mock_google_id_placeholder",
-      clientSecret:
-        process.env.GOOGLE_CLIENT_SECRET || "mock_google_secret_placeholder",
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
   ],
   secret: authSecret,

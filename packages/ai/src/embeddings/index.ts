@@ -43,7 +43,7 @@ class EmbeddingService {
         return result.data.map((item: any) => item.embedding);
     }
 
-    async searchDocuments(query: string, organizationId: string, sources: string[] = [], limit: number = 5, mode: 'hybrid' | 'semantic' | 'keyword' = 'hybrid'){
+    async searchDocuments(query: string, organizationId: string = "org_default", sources: string[] = [], limit: number = 5, mode: 'hybrid' | 'semantic' | 'keyword' = 'hybrid'){
         const apiKey = process.env.INVDIA_API_KEY;
         let queryEmbedding: number[] = [];
 

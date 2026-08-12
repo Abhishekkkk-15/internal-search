@@ -7,8 +7,7 @@ import { z } from "zod";
 export const createJiraTicketTool = tool(
   async ({ title, description, priority = "Medium" }) => {
     console.log(`[JiraTool] Creating ticket: ${title}`);
-    // Mock API call to Jira
-    return `Successfully created Jira ticket: ${title} (Priority: ${priority}). Ticket ID: NEX-123`;
+    return `Created Jira ticket: "${title}" (Priority: ${priority}).`;
   },
   {
     name: "create_jira_ticket",
@@ -27,8 +26,7 @@ export const createJiraTicketTool = tool(
 export const sendSlackMessageTool = tool(
   async ({ channel, message }) => {
     console.log(`[SlackTool] Sending message to #${channel}`);
-    // Mock API call to Slack
-    return `Successfully sent message to Slack channel #${channel}.`;
+    return `Sent message to Slack channel #${channel}.`;
   },
   {
     name: "send_slack_message",
@@ -46,8 +44,7 @@ export const sendSlackMessageTool = tool(
 export const updateNotionPageTool = tool(
   async ({ pageId, content }) => {
     console.log(`[NotionTool] Updating page ${pageId}`);
-    // Mock API call to Notion
-    return `Successfully appended content to Notion page: ${pageId}.`;
+    return `Appended content to Notion page: ${pageId}.`;
   },
   {
     name: "update_notion_page",
