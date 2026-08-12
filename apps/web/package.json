@@ -14,6 +14,7 @@
     "@nexus/types": "workspace:*",
     "@nexus/ui": "workspace:*",
     "@nexus/database": "workspace:*",
+    "@nexus/ai": "workspace:*",
     "@tanstack/react-query": "^5.62.7",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",

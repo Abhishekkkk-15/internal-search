@@ -33,7 +33,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onDateRangeChange,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
-  const sourcesList: SourceType[] = ['slack', 'notion', 'github', 'drive', 'jira'];
+  const sourcesList: SourceType[] = ['slack', 'notion', 'github'];
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && onSearch) {

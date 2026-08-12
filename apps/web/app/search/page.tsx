@@ -39,7 +39,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [searchTrigger, setSearchTrigger] = useState('');
   const [activeMatrix, setActiveMatrix] = useState<'hybrid' | 'semantic' | 'keyword'>('hybrid');
-  const [selectedSources, setSelectedSources] = useState<SourceType[]>(['slack', 'notion', 'github', 'drive', 'jira']);
+  const [selectedSources, setSelectedSources] = useState<SourceType[]>(['slack', 'notion', 'github']);
   const [authorFilter, setAuthorFilter] = useState('');
   const [dateRange, setDateRange] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -63,7 +63,7 @@ export default function SearchPage() {
   };
 
   const { data: session } = useSession();
-  const organizationId = session?.user?.organizationId || 'org_default';
+  const userId = session?.user?.id || 'user_default';
 
   // Fetch search items via Real Backend Hybrid Search
   const { data, isLoading, isError, isFetching } = useQuery({
@@ -76,7 +76,7 @@ export default function SearchPage() {
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.accessToken}`,
-          'X-Organization-Id': organizationId
+          'X-User-Id': userId
         },
         body: JSON.stringify({
           query: searchTrigger,
@@ -367,7 +367,7 @@ export default function SearchPage() {
                     Full Indexed Content Body
                   </span>
                   <pre className="p-4 rounded-2xl bg-slate-950 text-slate-200 text-xs font-mono whitespace-pre-wrap break-words leading-relaxed overflow-x-auto border border-slate-800">
-                    <code>{expandedDoc.fullContent}</code>
+                    <code>{(expandedDoc as any)?.fullContent || expandedDoc.snippet}</code>
                   </pre>
                 </div>
               </div>

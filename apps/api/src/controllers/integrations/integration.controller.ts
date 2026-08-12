@@ -3,40 +3,45 @@ import { prisma } from '../../lib/prisma';
 import { ConnectorConfigs } from '../../connectors';
 import axios from 'axios';
 
-// 0. Fetch all integrations for an org
-export const getIntegrations = async (req: Request, res: Response): Promise<void> => {
-  const organizationId = req.headers['x-organization-id'] as string;
-  if (!organizationId) {
-    res.status(400).json({ error: 'Missing X-Organization-Id header' });
+interface AuthenticatedRequest extends Request {
+  user?: any;
+}
+
+// 0. Fetch all integrations for a user (slack, notion, github)
+export const getIntegrations = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user?.id || (req.headers['x-user-id'] as string);
+  if (!userId) {
+    res.status(401).json({ error: 'User not authenticated' });
     return;
   }
 
   const connections = await prisma.connection.findMany({
-    where: { organizationId }
+    where: { 
+      userId,
+      source: { in: ['slack', 'notion', 'github'] }
+    }
   });
 
   res.json({ data: connections });
 };
 
 // 1. Redirect to Provider's OAuth Consent Screen
-export const connectIntegration = async (req: Request, res: Response): Promise<void> => {
+export const connectIntegration = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const source = req.params.source as keyof typeof ConnectorConfigs;
   const config = ConnectorConfigs[source];
 
-  if (!config) {
-    res.status(404).json({ error: 'Unsupported integration source' });
+  if (!config || !['slack', 'notion', 'github'].includes(source)) {
+    res.status(404).json({ error: 'Unsupported integration source. Allowed: slack, notion, github' });
     return;
   }
 
-  // The organization ID should be attached to the query string since this is a browser redirect
-  const organizationId = req.query.orgId as string || req.headers['x-organization-id'] as string;
-  if (!organizationId) {
-    res.status(400).json({ error: 'Missing organizationId parameter' });
+  const userId = req.user?.id || (req.query.userId as string) || (req.headers['x-user-id'] as string);
+  if (!userId) {
+    res.status(401).json({ error: 'Missing userId parameter' });
     return;
   }
 
-  // Generate state parameter to prevent CSRF and pass the orgId through the redirect
-  const state = Buffer.from(JSON.stringify({ organizationId, source })).toString('base64');
+  const state = Buffer.from(JSON.stringify({ userId, source })).toString('base64');
   
   const clientId = process.env[`${source.toUpperCase()}_CLIENT_ID`];
   const redirectUri = process.env[`${source.toUpperCase()}_REDIRECT_URI`];
@@ -54,7 +59,6 @@ export const connectIntegration = async (req: Request, res: Response): Promise<v
     state,
   });
 
-  // Redirect user to the provider
   res.redirect(`${config.oauth.authorizationUrl}?${queryParams.toString()}`);
 };
 
@@ -65,20 +69,19 @@ export const integrationCallback = async (req: Request, res: Response): Promise<
   const code = req.query.code as string;
   const stateStr = req.query.state as string;
 
-  if (!code || !stateStr || !config) {
+  if (!code || !stateStr || !config || !['slack', 'notion', 'github'].includes(source)) {
     res.status(400).json({ error: 'Invalid callback parameters' });
     return;
   }
 
   try {
     const stateObj = JSON.parse(Buffer.from(stateStr, 'base64').toString('utf-8'));
-    const { organizationId } = stateObj;
+    const { userId } = stateObj;
 
     const clientId = process.env[`${source.toUpperCase()}_CLIENT_ID`];
     const clientSecret = process.env[`${source.toUpperCase()}_CLIENT_SECRET`];
     const redirectUri = process.env[`${source.toUpperCase()}_REDIRECT_URI`];
 
-    // Exchange code for access token
     let tokenResponse;
     if (source === 'notion') {
       tokenResponse = await axios.post(config.oauth.tokenUrl, {
@@ -106,35 +109,39 @@ export const integrationCallback = async (req: Request, res: Response): Promise<
 
     const { access_token, refresh_token } = tokenResponse.data;
 
-    // Ensure organization exists (for development fallback)
-    await prisma.organization.upsert({
-      where: { id: organizationId },
+    // Ensure user exists
+    await prisma.user.upsert({
+      where: { id: userId },
       update: {},
-      create: { id: organizationId, name: 'Default Organization' }
+      create: { id: userId }
     });
 
-    // Upsert the connection in the database
-    await prisma.connection.upsert({
-      where: { 
-        id: (await prisma.connection.findFirst({ where: { organizationId, source } }))?.id || 'new-conn'
-      },
-      update: {
-        accessToken: access_token,
-        refreshToken: refresh_token || undefined,
-        status: 'connected',
-        updatedAt: new Date()
-      },
-      create: {
-        organizationId,
-        source,
-        status: 'connected',
-        accessToken: access_token,
-        refreshToken: refresh_token || null
-      }
+    const existingConn = await prisma.connection.findFirst({
+      where: { userId, source }
     });
 
+    if (existingConn) {
+      await prisma.connection.update({
+        where: { id: existingConn.id },
+        data: {
+          accessToken: access_token,
+          refreshToken: refresh_token || undefined,
+          status: 'connected',
+          updatedAt: new Date()
+        }
+      });
+    } else {
+      await prisma.connection.create({
+        data: {
+          userId,
+          source,
+          status: 'connected',
+          accessToken: access_token,
+          refreshToken: refresh_token || null
+        }
+      });
+    }
 
-    // Redirect back to frontend connections page
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/connections?success=true&source=${source}`);
   } catch (error: any) {
     console.error(`[OAuth Callback Error] - ${source}:`, error?.response?.data || error.message);
@@ -143,17 +150,17 @@ export const integrationCallback = async (req: Request, res: Response): Promise<
 };
 
 // 3. Disconnect Integration
-export const disconnectIntegration = async (req: Request, res: Response): Promise<void> => {
+export const disconnectIntegration = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const source = req.params.source as string;
-  const organizationId = req.headers['x-organization-id'] as string;
+  const userId = req.user?.id || (req.headers['x-user-id'] as string);
 
-  if (!organizationId) {
-    res.status(400).json({ error: 'Missing X-Organization-Id header' });
+  if (!userId) {
+    res.status(401).json({ error: 'User not authenticated' });
     return;
   }
 
   const existingConnection = await prisma.connection.findFirst({
-    where: { organizationId, source }
+    where: { userId, source }
   });
 
   if (existingConnection) {
@@ -171,63 +178,49 @@ export const disconnectIntegration = async (req: Request, res: Response): Promis
 };
 
 // 4. Trigger Manual Sync (via BullMQ)
-export const triggerSync = async (req: Request, res: Response): Promise<void> => {
-  const organizationId = req.headers['x-organization-id'] as string;
+export const triggerSync = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user?.id || (req.headers['x-user-id'] as string);
   const { syncQueue } = require('../../queues/sync.queue');
 
-  if (!organizationId) {
-    res.status(400).json({ error: 'Missing organizationId' });
+  if (!userId) {
+    res.status(401).json({ error: 'User not authenticated' });
     return;
   }
 
-  // Fetch org to check plan for priority
-  const org = await prisma.organization.findUnique({ 
-    where: { id: organizationId },
-    select: { plan: true }
-  });
-
-  // Pro users get higher priority (1 vs 10)
-  const priority = org?.plan === 'pro' ? 1 : 10;
-
-  // Add job to BullMQ
-  await syncQueue.add(`sync-${organizationId}`, { organizationId }, { 
-    priority,
+  await syncQueue.add(`sync-${userId}`, { userId }, { 
+    priority: 1,
     removeOnComplete: true 
   });
   
-  res.json({ success: true, message: `Sync job queued with ${org?.plan || 'free'} priority` });
+  res.json({ success: true, message: `Sync job queued for user` });
 };
 
 // 5. Update Sync Schedule
-export const updateSchedule = async (req: Request, res: Response): Promise<void> => {
-  const organizationId = req.headers['x-organization-id'] as string;
-  const { source, schedule } = req.body; // e.g., "0 0 * * *" for daily
+export const updateSchedule = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user?.id || (req.headers['x-user-id'] as string);
+  const { source, schedule } = req.body;
   const { syncQueue } = require('../../queues/sync.queue');
 
-  if (!organizationId || !source) {
-    res.status(400).json({ error: 'Missing organizationId or source' });
+  if (!userId || !source) {
+    res.status(400).json({ error: 'Missing userId or source' });
     return;
   }
 
-  // 1. Update the database
   await prisma.connection.updateMany({
-    where: { organizationId, source },
+    where: { userId, source },
     data: { syncSchedule: schedule }
   });
 
-  // 2. Manage BullMQ repeatable jobs
-  // First, remove existing repeatable jobs for this connection
   const repeatableJobs = await syncQueue.getRepeatableJobs();
-  const existingJob = repeatableJobs.find((j: any) => j.name === `sync-${organizationId}-${source}`);
+  const existingJob = repeatableJobs.find((j: any) => j.name === `sync-${userId}-${source}`);
   if (existingJob) {
     await syncQueue.removeRepeatableByKey(existingJob.key);
   }
 
-  // Add new repeatable job if schedule is provided
   if (schedule) {
     await syncQueue.add(
-      `sync-${organizationId}-${source}`,
-      { organizationId, source },
+      `sync-${userId}-${source}`,
+      { userId, source },
       { 
         repeat: { pattern: schedule },
         removeOnComplete: true
@@ -237,4 +230,3 @@ export const updateSchedule = async (req: Request, res: Response): Promise<void>
 
   res.json({ success: true, message: schedule ? `Schedule updated to ${schedule}` : 'Schedule removed' });
 };
-

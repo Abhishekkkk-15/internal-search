@@ -7,25 +7,26 @@ import { redisConnection } from '../../config/redis';
 export const syncWorker = new Worker(
   'sync-documents',
   async (job: Job) => {
-    const { organizationId } = job.data;
-    console.log(`[Sync Worker] Processing sync for Org ${organizationId}...`);
+    const { userId } = job.data;
+    console.log(`[Sync Worker] Processing sync for User ${userId}...`);
 
-    // 1. Find all active connections for this org
+    // 1. Find active connections for this user (slack, notion, github)
     const connections = await prisma.connection.findMany({
       where: {
-        organizationId,
+        userId,
         status: 'connected',
-        accessToken: { not: null }
+        accessToken: { not: null },
+        source: { in: ['slack', 'notion', 'github'] }
       }
     });
 
     if (connections.length === 0) {
-      console.log(`[Sync Worker] No active connections found for Org ${organizationId}`);
+      console.log(`[Sync Worker] No active connections found for User ${userId}`);
       return;
     }
 
     for (const connection of connections) {
-      console.log(`[Sync Worker] Syncing ${connection.source} for Org ${organizationId}...`);
+      console.log(`[Sync Worker] Syncing ${connection.source} for User ${userId}...`);
 
       let rawDocuments: any[] = [];
 
@@ -55,10 +56,9 @@ export const syncWorker = new Worker(
             continue;
           }
           try {
-            // Truncate content to avoid token limits (512 tokens is roughly 1000 characters for safety)
             const truncatedContent = doc.content.length > 1000 ? doc.content.substring(0, 1000) + "..." : doc.content;
 
-            // Generate embedding for the content
+            // Generate embedding for content
             const embeddings = await embeddingService.generateEmbeddings([truncatedContent]);
             if (!embeddings || embeddings.length === 0) continue;
 
@@ -67,10 +67,10 @@ export const syncWorker = new Worker(
 
             // Insert into DB with vector
             await prisma.$executeRaw`
-              INSERT INTO "Document" ("id", "organizationId", "source", "title", "content", "author", "url", "embedding")
+              INSERT INTO "Document" ("id", "userId", "source", "title", "content", "author", "url", "embedding")
               VALUES (
                 gen_random_uuid(), 
-                ${organizationId}, 
+                ${userId}, 
                 ${doc.source}, 
                 ${doc.title}, 
                 ${truncatedContent}, 
@@ -93,7 +93,7 @@ export const syncWorker = new Worker(
           }
         });
 
-        console.log(`[Sync Worker] Completed ${connection.source} for Org ${organizationId}`);
+        console.log(`[Sync Worker] Completed ${connection.source} for User ${userId}`);
 
       } catch (error: any) {
         console.error(`[Sync Worker] Error syncing ${connection.source}:`, error.message);

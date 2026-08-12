@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "../../../../lib/auth";
 
-export async function proxyAuthHandler(request: NextRequest) {
+async function proxyAuthHandler(request: NextRequest) {
   try {
     // Extract server-side session credentials dynamically
     const session = await auth();

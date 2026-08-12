@@ -20,9 +20,10 @@ model User {
   accounts      Account[]
   sessions      Session[]
 
-  // Nexus domain relations
-  organizations OrganizationUser[]
+  // User domain relations
   conversations Conversation[]
+  connections   Connection[]
+  documents     Document[]
 }
 
 model Account {
@@ -60,51 +61,20 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Nexus Domain Schema
-
-model Organization {
-  id            String   @id @default(cuid())
-  name          String
-  timezone      String   @default("America/Los_Angeles")
-  language      String   @default("en-US")
-  llmProvider   String   @default("openai")
-  retentionDays Int      @default(90)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  plan          String   @default("free") // free, pro
-  enabledTools  Json?    // { jira: boolean, slack: boolean, etc. }
-
-  users       OrganizationUser[]
-  connections Connection[]
-  documents   Document[]
-}
-
-model OrganizationUser {
-  id             String       @id @default(cuid())
-  userId         String
-  organizationId String
-  role           String       @default("member") // owner, admin, member
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, organizationId])
-}
-
 model Connection {
-  id             String   @id @default(cuid())
-  organizationId String
-  source         String   // slack, notion, github, drive, jira
-  status         String   // connected, disconnected, syncing
-  accessToken    String?  @db.Text
-  refreshToken   String?  @db.Text
-  lastSync       DateTime?
-  indexedCount   Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  syncSchedule   String?  // cron expression
+  id           String    @id @default(cuid())
+  userId       String
+  source       String    // slack, notion, github
+  status       String    // connected, disconnected, syncing
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
+  lastSync     DateTime?
+  indexedCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  syncSchedule String?   // cron expression
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Conversation {
@@ -131,21 +101,21 @@ model Message {
   // JSON field to store search results snippet
   searchResults  Json?
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Document {
-  id             String   @id @default(cuid())
-  organizationId String
-  title          String
-  content        String   @db.Text
-  source         String   // slack, notion, github, drive, jira
-  url            String?
-  author         String?
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  content   String   @db.Text
+  source    String   // slack, notion, github
+  url       String?
+  author    String?
+  createdAt DateTime @default(now())
   
   // pgvector extension mapping
-  embedding      Unsupported("vector(4096)")?
+  embedding Unsupported("vector(4096)")?
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

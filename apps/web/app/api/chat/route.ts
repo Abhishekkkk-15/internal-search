@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       snippet: doc.content.length > 200 ? `${doc.content.substring(0, 200)}...` : doc.content,
       source: doc.source as any,
       relevanceScore: 1.0,
-      url: doc.url || undefined,
+      url: doc.url || '',
       createdAt: doc.createdAt.toISOString(),
       author: doc.author || 'System',
     }));

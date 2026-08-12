@@ -41,7 +41,7 @@ class EmbeddingService {
         return result.data.map((item: any) => item.embedding);
     }
 
-    async searchDocuments(query: string, organizationId: string = "org_default", sources: string[] = [], limit: number = 5, mode: 'hybrid' | 'semantic' | 'keyword' = 'hybrid') {
+    async searchDocuments(query: string, userId: string, sources: string[] = [], limit: number = 5, mode: 'hybrid' | 'semantic' | 'keyword' = 'hybrid') {
         const apiKey = process.env.INVDIA_API_KEY;
         let queryEmbedding: number[] = [];
 
@@ -73,9 +73,8 @@ class EmbeddingService {
         }
 
         const embeddingString = queryEmbedding.length > 0 ? `[${queryEmbedding.join(',')}]` : '[]';
-        const sourceFilter = sources.length > 0
-            ? Prisma.raw(`AND source IN (${sources.map(s => `'${s}'`).join(',')})`)
-            : Prisma.raw('');
+        const activeSources = sources.length > 0 ? sources : ['slack', 'notion', 'github'];
+        const sourceFilter = Prisma.raw(`AND source IN (${activeSources.map(s => `'${s}'`).join(',')})`);
 
         // 2. Perform Search based on Mode
         if (mode === 'semantic') {
@@ -85,7 +84,7 @@ class EmbeddingService {
                        0.0 as keyword_score,
                        1.0 / (60 + ROW_NUMBER() OVER (ORDER BY embedding <=> ${embeddingString}::vector)) as rrf_score
                 FROM "Document"
-                WHERE "organizationId" = ${organizationId}
+                WHERE "userId" = ${userId}
                 ${sourceFilter}
                 ORDER BY embedding <=> ${embeddingString}::vector
                 LIMIT ${limit};
@@ -99,7 +98,7 @@ class EmbeddingService {
                        ts_rank_cd(to_tsvector('english', title || ' ' || content), websearch_to_tsquery('english', ${query})) as keyword_score,
                        1.0 / (60 + ROW_NUMBER() OVER (ORDER BY ts_rank_cd(to_tsvector('english', title || ' ' || content), websearch_to_tsquery('english', ${query})) DESC)) as rrf_score
                 FROM "Document"
-                WHERE "organizationId" = ${organizationId}
+                WHERE "userId" = ${userId}
                 ${sourceFilter}
                 AND to_tsvector('english', title || ' ' || content) @@ websearch_to_tsquery('english', ${query})
                 ORDER BY keyword_score DESC
@@ -114,7 +113,7 @@ class EmbeddingService {
                        ROW_NUMBER() OVER (ORDER BY embedding <=> ${embeddingString}::vector) as rank,
                        1 - (embedding <=> ${embeddingString}::vector) as similarity
                 FROM "Document"
-                WHERE "organizationId" = ${organizationId}
+                WHERE "userId" = ${userId}
                 ${sourceFilter}
                 ORDER BY embedding <=> ${embeddingString}::vector
                 LIMIT 50
@@ -124,7 +123,7 @@ class EmbeddingService {
                        ROW_NUMBER() OVER (ORDER BY ts_rank_cd(to_tsvector('english', title || ' ' || content), websearch_to_tsquery('english', ${query})) DESC) as rank,
                        ts_rank_cd(to_tsvector('english', title || ' ' || content), websearch_to_tsquery('english', ${query})) as score
                 FROM "Document"
-                WHERE "organizationId" = ${organizationId}
+                WHERE "userId" = ${userId}
                 ${sourceFilter}
                 AND to_tsvector('english', title || ' ' || content) @@ websearch_to_tsquery('english', ${query})
                 ORDER BY score DESC

@@ -30,7 +30,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const initialPrompt = searchParams?.get('prompt') || '';
-  const orgId = session?.user?.organizationId || 'org_default';
+  const userId = session?.user?.id || 'user_default';
 
   // 1. Fetch Conversations (Threads)
   const { data: threadsData, isLoading: threadsLoading } = useQuery({
@@ -41,7 +41,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
       const res = await fetch(`${API_BASE}/chat/conversations`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
-          'X-Organization-Id': orgId
+          'X-User-Id': userId
         }
       });
       if (!res.ok) throw new Error('Failed to fetch conversations');
@@ -55,13 +55,13 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
     {
       id: 'welcome-init',
       role: 'assistant',
-      content: "Hello! I am **Nexus Assistant**, your autonomous enterprise data connector. I have full read/write access scopes configured across your Slack, Notion, GitHub, Google Drive, and Jira layers.\n\nHow can I streamline your workload today?",
+      content: "Hello! I am **Nexus Assistant**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
       timestamp: new Date(),
     },
   ]);
 
   const [input, setInput] = useState('');
-  const [selectedScope, setSelectedScope] = useState<SourceType[]>(['slack', 'notion', 'github', 'drive', 'jira']);
+  const [selectedScope, setSelectedScope] = useState<SourceType[]>(['slack', 'notion', 'github']);
   const [isStreaming, setIsStreaming] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -143,7 +143,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'X-Organization-Id': orgId
+          'X-User-Id': userId
         },
         body: JSON.stringify({
           messages: [...messages, userMsg].filter(m => m.id !== 'welcome-init'),

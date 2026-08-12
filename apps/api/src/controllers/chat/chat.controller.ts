@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { getNvidiaChatClient, CHAT_MODELS, embeddingService, createJiraTicketTool, sendSlackMessageTool, updateNotionPageTool } from "@nexus/ai";
+import { getNvidiaChatClient, CHAT_MODELS, embeddingService } from "@nexus/ai";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "@nexus/database";
 
@@ -10,45 +10,30 @@ interface AuthenticatedRequest extends Request {
 export class ChatController {
   agent: ChatOpenAI;
   constructor() {
-    this.agent = getNvidiaChatClient(CHAT_MODELS.FAST);
+    this.agent = getNvidiaChatClient(CHAT_MODELS.SMART);
   }
 
   async handleChat(req: AuthenticatedRequest, res: Response) {
     try {
       const { messages, scope } = req.body;
       const userId = req.user?.id;
-      const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
 
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      // 1. Fetch Org Settings for Tool Enforcement
-      const organization = await prisma.organization.findUnique({
-        where: { id: organizationId },
+      // Ensure User record exists in DB to prevent foreign key constraint P2003
+      await prisma.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: {
+          id: userId,
+          email: req.user?.email || `${userId}@user.local`,
+          name: req.user?.name || "Nexus User"
+        }
       });
 
-      const enabledTools = (organization?.enabledTools as any) || {
-        jira: true,
-        slack: true,
-        notion: false,
-        drive: false
-      };
-
-      // 2. Filter available tools
-      const availableTools: any[] = [];
-      if (enabledTools.jira && createJiraTicketTool) availableTools.push(createJiraTicketTool);
-      if (enabledTools.slack && sendSlackMessageTool) availableTools.push(sendSlackMessageTool);
-      if (enabledTools.notion && updateNotionPageTool) availableTools.push(updateNotionPageTool);
-
-      const validTools = availableTools.filter(Boolean);
-
-      // Bind tools to the client
-      const agentWithTools = validTools.length > 0 
-        ? this.agent.bindTools(validTools)
-        : this.agent;
-
-      // 3. Get or create conversation
+      // 1. Get or create conversation for user
       let conversation = await prisma.conversation.findFirst({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -60,40 +45,52 @@ export class ChatController {
         });
       }
 
-      // 4. Extract user query & RAG
+      // 2. Extract user query & perform RAG search by userId for slack, notion, github
       const userQuery = messages[messages.length - 1].content;
-      const contextDocs = await embeddingService.searchDocuments(userQuery, organizationId, scope || [], 3);
-      
-      const contextText = contextDocs.length > 0 
-        ? contextDocs.map((doc: any) => `Source: ${doc.title}\nContent: ${doc.content}`).join("\n\n")
-        : "No relevant documents found.";
+      const activeScope = (scope && scope.length > 0) ? scope : ['slack', 'notion', 'github'];
+      const rawContextDocs = await embeddingService.searchDocuments(userQuery, userId, activeScope, 5);
 
-      // 5. Streaming setup
+      // Filter search results: exclude documents with less than 40% (0.4) similarity score
+      const contextDocs = rawContextDocs.filter((d: any) => {
+        const score = d.similarity ?? d.semantic_score ?? d.rrf_score ?? 0;
+        return score >= 0.4;
+      });
+
+      const contextText = contextDocs.length > 0
+        ? contextDocs.map((doc: any, i: number) => `[Source ${i + 1} - ${doc.source.toUpperCase()}]: ${doc.title}\nContent: ${doc.content}\nURL: ${doc.url || 'N/A'}`).join("\n\n---\n\n")
+        : "No relevant documents found in your connected Slack, Notion, or GitHub sources.";
+
+      // 3. Streaming setup
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
 
-      const systemPrompt = `You are Nexus Assistant, a premium AI expert. 
-Answer the user's question based ONLY on the following context.
-If the user asks to create a ticket, send a message, or update a page, use the provided tools if they are available.
+      const systemPrompt = `You are Nexus Internal Knowledge Assistant.
+Your goal is to answer the user's question accurately and concisely based ONLY on the provided context from their connected Slack, Notion, and GitHub documents.
+
+Guidelines:
+- If the answer is present in the context, answer directly and cite sources using [Source X].
+- If the answer is NOT in the context, state: "I couldn't find relevant information on that in your connected Slack, Notion, or GitHub sources."
+- Do not attempt to execute actions or pretend to trigger tools.
+
 CONTEXT:
 ${contextText}`;
 
       // Send search results first
-      res.write(JSON.stringify({ 
-        type: 'searchResults', 
-        data: contextDocs.map((d: any) => ({ 
+      res.write(JSON.stringify({
+        type: 'searchResults',
+        data: contextDocs.map((d: any) => ({
           id: d.id,
-          title: d.title, 
+          title: d.title,
           url: d.url,
           source: d.source,
           snippet: d.content?.substring(0, 200) + "...",
-          relevanceScore: d.similarity || 0,
+          relevanceScore: d.similarity || d.rrf_score || 0,
           author: d.author || "System"
-        })) 
+        }))
       }) + "\n");
 
-      // 6. Execute Agent Call
-      const response = await agentWithTools.invoke([
+      // 4. Execute LLM Call (Pure RAG, No Tools)
+      const response = await this.agent.invoke([
         { role: "system", content: systemPrompt },
         ...messages.map((msg: { role: string; content: string }) => ({
           role: msg.role,
@@ -101,36 +98,10 @@ ${contextText}`;
         }))
       ]);
 
-      let fullContent = "";
+      const fullContent = (response.content as string) || "";
+      res.write(JSON.stringify({ type: 'text', content: fullContent }) + "\n");
 
-      // Handle Tool Calls
-      if (response.tool_calls && response.tool_calls.length > 0) {
-        for (const toolCall of response.tool_calls) {
-          res.write(JSON.stringify({ 
-            type: 'text', 
-            content: `\n\n> 🛠️ **Nexus Action Triggered:** ${toolCall.name}\n> Parameters: ${JSON.stringify(toolCall.args)}\n\n` 
-          }) + "\n");
-          
-          // Execute tool dynamically
-          let toolResult = `Executed tool: ${toolCall.name}`;
-          const matchingTool = availableTools.find((t: any) => t.name === toolCall.name);
-          if (matchingTool) {
-            toolResult = await matchingTool.invoke(toolCall.args);
-          }
-
-          fullContent += `\n[Tool Executed: ${toolCall.name} - ${toolResult}]\n`;
-          res.write(JSON.stringify({ type: 'text', content: `✅ ${toolResult}\n\n` }) + "\n");
-        }
-      }
-
-      // Handle Text Response
-      if (response.content) {
-        const content = response.content as string;
-        fullContent += content;
-        res.write(JSON.stringify({ type: 'text', content }) + "\n");
-      }
-
-      // 7. Persist messages
+      // 5. Persist messages in DB
       await prisma.message.create({
         data: { conversationId: conversation.id, role: "user", content: userQuery },
       });
@@ -140,10 +111,10 @@ ${contextText}`;
           conversationId: conversation.id,
           role: "assistant",
           content: fullContent,
-          searchResults: contextDocs.map((d: any) => ({ 
-            id: d.id, title: d.title, url: d.url, source: d.source, 
-            snippet: d.content?.substring(0, 200) + "...", 
-            relevanceScore: d.similarity || 0, author: d.author || "System"
+          searchResults: contextDocs.map((d: any) => ({
+            id: d.id, title: d.title, url: d.url, source: d.source,
+            snippet: d.content?.substring(0, 200) + "...",
+            relevanceScore: d.similarity || d.rrf_score || 0, author: d.author || "System"
           })),
         },
       });
@@ -159,34 +130,39 @@ ${contextText}`;
     }
   }
 
-  async getConversations(req: AuthenticatedRequest, res: Response){
-    const user = req.user 
+  async getConversations(req: AuthenticatedRequest, res: Response) {
+    const user = req.user;
     const conversations = await prisma.conversation.findMany({
-      where:{
+      where: {
         userId: user?.id
       },
-      include:{
+      include: {
         messages: {
           orderBy: { timestamp: 'asc' }
         }
       },
       orderBy: { createdAt: 'desc' }
-    })
+    });
 
-    const pay = conversations ? conversations : []
-    return res.status(200).json({pay})
+    const pay = conversations ? conversations : [];
+    return res.status(200).json({ pay });
   }
 
   async handleSearch(req: AuthenticatedRequest, res: Response) {
     try {
       const { query, scope, mode } = req.body;
-      const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+      const userId = req.user?.id;
 
       if (!query) {
         return res.status(400).json({ message: "Query is required" });
       }
 
-      const results = await embeddingService.searchDocuments(query, organizationId, scope || [], 10, mode || 'hybrid');
+      const activeScope = (scope && scope.length > 0) ? scope : ['slack', 'notion', 'github'];
+      const rawResults = await embeddingService.searchDocuments(query, userId, activeScope, 10, mode || 'hybrid');
+      const results = rawResults.filter((d: any) => {
+        const score = d.similarity ?? d.semantic_score ?? d.rrf_score ?? 0;
+        return score >= 0.4;
+      });
 
       return res.status(200).json({
         data: results,
@@ -202,5 +178,4 @@ ${contextText}`;
       return res.status(500).json({ message: "Internal server error" });
     }
   }
-
 }

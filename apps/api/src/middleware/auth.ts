@@ -9,7 +9,6 @@ export const authmiddleware = (
   next: NextFunction,
 ) => {
   const authHeader = req.headers["authorization"] || req.headers["Authorization"];
-  console.log("authHeader :", JSON.stringify(authHeader));
   if (!authHeader) {
     return res.status(401).json({ message: "Authorization header missing" });
   }
@@ -24,7 +23,7 @@ export const authmiddleware = (
   }
 
   // Remove double quotes if the user accidentally copied them from Thunder Client
-  if (token.startsWith('"') && token.endsWith('"')) { 
+  if (token.startsWith('"') && token.endsWith('"')) {
     token = token.slice(1, -1).trim();
   }
 
@@ -38,9 +37,7 @@ export const authmiddleware = (
   }
 
   try {
-    console.log("Verifying with secret:", process.env.NEXTAUTH_SECRET);
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET as string);
-    console.log("Decoded token :", decoded);
     req.user = decoded as User;
     next();
   } catch (error) {

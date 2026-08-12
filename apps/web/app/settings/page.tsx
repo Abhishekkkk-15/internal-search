@@ -53,10 +53,12 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
+const API_BASE = 'http://localhost:3002/api';
+
 export default function SettingsPage() {
 
   const { data: session } = useSession();
-  const organizationId = session?.user?.organizationId || 'org_default';
+  const userId = session?.user?.id || 'user_default';
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<
@@ -66,12 +68,12 @@ export default function SettingsPage() {
 
   // 1. Fetch real settings
   const { data: settings, isLoading } = useQuery({
-    queryKey: ['orgSettings', organizationId],
+    queryKey: ['userSettings', userId],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/organization/settings`, {
         headers: {
           'Authorization': `Bearer ${session?.accessToken}`,
-          'X-Organization-Id': organizationId
+          'X-User-Id': userId
         }
       });
       if (!res.ok) throw new Error('Failed to fetch settings');
@@ -88,7 +90,7 @@ export default function SettingsPage() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.accessToken}`,
-          'X-Organization-Id': organizationId
+          'X-User-Id': userId
         },
         body: JSON.stringify({
           name: values.organizationName,

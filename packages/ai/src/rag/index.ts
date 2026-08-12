@@ -33,6 +33,10 @@ export class RagService {
       
       Context:
       ${context || "No relevant internal documents found."}
+
+      User Query:
+      ${query}
+
     `;
 
     // 5. Get completion
@@ -41,6 +45,7 @@ export class RagService {
       { role: "user", content: query },
     ]);
 
+    console.log("Agent Response ", response)
     return {
       text: response.content,
       sources: documents,

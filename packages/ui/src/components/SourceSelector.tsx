@@ -15,7 +15,7 @@ export const SourceSelector: React.FC<SourceSelectorProps> = ({
   onChange,
   className,
 }) => {
-  const availableSources: SourceType[] = ['slack', 'notion', 'github', 'drive', 'jira'];
+  const availableSources: SourceType[] = ['slack', 'notion', 'github'];
 
   const toggleSource = (source: SourceType) => {
     if (selectedSources.includes(source)) {

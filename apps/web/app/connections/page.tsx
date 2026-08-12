@@ -42,17 +42,17 @@ const staticConfigs: Record<SourceType, { interval: string; description: string 
 export default function ConnectionsPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
-  const orgId = session?.user?.organizationId || 'org_default';
+  const userId = session?.user?.id || 'user_default';
 
   // Fetch real connection states from the Express backend
   const { data: dbConnections, isLoading } = useQuery({
-    queryKey: ['integrations', orgId],
+    queryKey: ['integrations', userId],
     queryFn: async () => {
       // @ts-ignore
       const token = session?.accessToken;
       const res = await fetch(`${API_BASE}/integrations`, {
         headers: { 
-          'X-Organization-Id': orgId,
+          'X-User-Id': userId,
           'Authorization': `Bearer ${token}`
         }
       });
@@ -71,7 +71,7 @@ export default function ConnectionsPage() {
       const res = await fetch(`${API_BASE}/integrations/${source}/disconnect`, {
         method: 'POST',
         headers: { 
-          'X-Organization-Id': orgId,
+          'X-User-Id': userId,
           'Authorization': `Bearer ${token}`
         }
       });
@@ -79,7 +79,7 @@ export default function ConnectionsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', userId] });
     }
   });
 
@@ -97,7 +97,7 @@ export default function ConnectionsPage() {
       const res = await fetch(`${API_BASE}/integrations/sync`, {
         method: 'POST',
         headers: { 
-          'X-Organization-Id': orgId,
+          'X-User-Id': userId,
           'Authorization': `Bearer ${token}`
         }
       });
@@ -115,7 +115,7 @@ export default function ConnectionsPage() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'X-Organization-Id': orgId,
+          'X-User-Id': userId,
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ source, schedule })
@@ -124,7 +124,7 @@ export default function ConnectionsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', userId] });
     }
   });
 
@@ -139,10 +139,10 @@ export default function ConnectionsPage() {
 
   const handleStartOauthFlow = (src: SourceType) => {
     // Navigate directly to the backend OAuth initialization route
-    window.location.href = `${API_BASE}/integrations/${src}/connect?orgId=${orgId}`;
+    window.location.href = `${API_BASE}/integrations/${src}/connect?userId=${userId}`;
   };
 
-  const sourcesList: SourceType[] = ['slack', 'notion', 'github', 'drive', 'jira'];
+  const sourcesList: SourceType[] = ['slack', 'notion', 'github'];
 
   return (
     <div className="space-y-6 pb-12">

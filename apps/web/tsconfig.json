@@ -19,13 +19,19 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@nexus/ai": ["../../packages/ai/src/index.ts"],
+      "@nexus/database": ["../../packages/database/src/index.ts"],
+      "@nexus/types": ["../../packages/types/src/index.ts"],
+      "@nexus/ui": ["../../packages/ui/src/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"],
   "references": [
     { "path": "../../packages/types" },
-    { "path": "../../packages/ui" }
+    { "path": "../../packages/ui" },
+    { "path": "../../packages/ai" },
+    { "path": "../../packages/database" }
   ]
 }
