@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { getNvidiaChatClient, CHAT_MODELS, embeddingService } from "@nexus/ai";
+import { getNvidiaChatClient, CHAT_MODELS, embeddingService, createJiraTicketTool, sendSlackMessageTool, updateNotionPageTool } from "@nexus/ai";
 import { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "@nexus/database";
 
@@ -36,15 +36,16 @@ export class ChatController {
       };
 
       // 2. Filter available tools
-      const { createJiraTicketTool, sendSlackMessageTool, updateNotionPageTool } = require("@nexus/ai");
       const availableTools: any[] = [];
-      if (enabledTools.jira) availableTools.push(createJiraTicketTool);
-      if (enabledTools.slack) availableTools.push(sendSlackMessageTool);
-      if (enabledTools.notion) availableTools.push(updateNotionPageTool);
+      if (enabledTools.jira && createJiraTicketTool) availableTools.push(createJiraTicketTool);
+      if (enabledTools.slack && sendSlackMessageTool) availableTools.push(sendSlackMessageTool);
+      if (enabledTools.notion && updateNotionPageTool) availableTools.push(updateNotionPageTool);
+
+      const validTools = availableTools.filter(Boolean);
 
       // Bind tools to the client
-      const agentWithTools = availableTools.length > 0 
-        ? this.agent.bindTools(availableTools)
+      const agentWithTools = validTools.length > 0 
+        ? this.agent.bindTools(validTools)
         : this.agent;
 
       // 3. Get or create conversation

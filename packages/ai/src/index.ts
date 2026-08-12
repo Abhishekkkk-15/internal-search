@@ -6,3 +6,4 @@
 export * from "./client";
 export * from "./rag";
 export * from "./embeddings";
+export * from "./tools";
