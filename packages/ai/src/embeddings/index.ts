@@ -3,15 +3,13 @@ import { getNvidiaEmbedClient, CHAT_MODELS } from "../client";
 import { prisma, Prisma } from "@nexus/database";
 
 class EmbeddingService {
-    private openai: OpenAIEmbeddings;
-
-    constructor() {
-        this.openai = getNvidiaEmbedClient();
+    private getClient() {
+        return getNvidiaEmbedClient();
     }
 
     async generateEmbeddings(texts: string[]) {
         const apiKey = process.env.INVDIA_API_KEY;
-        
+
         // NVIDIA NIM requires 'input_type' for e5-v5 and other models
         const response = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
             method: "POST",
@@ -43,7 +41,7 @@ class EmbeddingService {
         return result.data.map((item: any) => item.embedding);
     }
 
-    async searchDocuments(query: string, organizationId: string = "org_default", sources: string[] = [], limit: number = 5, mode: 'hybrid' | 'semantic' | 'keyword' = 'hybrid'){
+    async searchDocuments(query: string, organizationId: string = "org_default", sources: string[] = [], limit: number = 5, mode: 'hybrid' | 'semantic' | 'keyword' = 'hybrid') {
         const apiKey = process.env.INVDIA_API_KEY;
         let queryEmbedding: number[] = [];
 
@@ -75,8 +73,8 @@ class EmbeddingService {
         }
 
         const embeddingString = queryEmbedding.length > 0 ? `[${queryEmbedding.join(',')}]` : '[]';
-        const sourceFilter = sources.length > 0 
-            ? Prisma.raw(`AND source IN (${sources.map(s => `'${s}'`).join(',')})`) 
+        const sourceFilter = sources.length > 0
+            ? Prisma.raw(`AND source IN (${sources.map(s => `'${s}'`).join(',')})`)
             : Prisma.raw('');
 
         // 2. Perform Search based on Mode

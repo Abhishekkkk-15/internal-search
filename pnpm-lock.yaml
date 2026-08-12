@@ -176,6 +176,9 @@ importers:
       langchain:
         specifier: ^1.4.0
         version: 1.4.0(@langchain/core@1.1.46(openai@6.37.0(zod@3.25.76)))(openai@6.37.0(zod@3.25.76))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
