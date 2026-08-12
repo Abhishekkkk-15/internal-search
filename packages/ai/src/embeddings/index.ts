@@ -131,6 +131,7 @@ class EmbeddingService {
             )
             SELECT d.id, d.title, d.content, d.source, d.url, d.author,
                    COALESCE(1.0 / (60 + s.rank), 0.0) + COALESCE(1.0 / (60 + k.rank), 0.0) as rrf_score,
+                   COALESCE(s.similarity, 0.0) as similarity,
                    COALESCE(s.similarity, 0.0) as semantic_score,
                    COALESCE(k.score, 0.0) as keyword_score
             FROM "Document" d

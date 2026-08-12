@@ -60,7 +60,7 @@ export class AnalyticsController {
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
-        const dayName = days[d.getDay()];
+        const dayName = days[d.getDay()] || 'Sun';
         weeklyDataMap[dayName] = 0;
       }
 
@@ -74,9 +74,9 @@ export class AnalyticsController {
       });
 
       recentUserMessages.forEach((msg) => {
-        const dayName = days[new Date(msg.timestamp).getDay()];
+        const dayName = days[new Date(msg.timestamp).getDay()] || 'Sun';
         if (weeklyDataMap[dayName] !== undefined) {
-          weeklyDataMap[dayName] += 1;
+          weeklyDataMap[dayName]! += 1;
         }
       });
 

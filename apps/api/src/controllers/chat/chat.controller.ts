@@ -49,11 +49,11 @@ export class ChatController {
       const userQuery = messages[messages.length - 1].content;
       const activeScope = (scope && scope.length > 0) ? scope : ['slack', 'notion', 'github'];
       const rawContextDocs = await embeddingService.searchDocuments(userQuery, userId, activeScope, 5);
-
-      // Filter search results: exclude documents with less than 40% (0.4) similarity score
+      console.log(rawContextDocs)
+      // Filter search results: exclude documents with less than similarity score threshold
       const contextDocs = rawContextDocs.filter((d: any) => {
-        const score = d.similarity ?? d.semantic_score ?? d.rrf_score ?? 0;
-        return score >= 0.4;
+        const score = d.similarity ?? d.semantic_score ?? 0;
+        return score >= 0.2;
       });
 
       const contextText = contextDocs.length > 0
@@ -84,7 +84,7 @@ ${contextText}`;
           url: d.url,
           source: d.source,
           snippet: d.content?.substring(0, 200) + "...",
-          relevanceScore: d.similarity || d.rrf_score || 0,
+          relevanceScore: d.similarity ?? d.semantic_score ?? 0,
           author: d.author || "System"
         }))
       }) + "\n");
@@ -114,7 +114,7 @@ ${contextText}`;
           searchResults: contextDocs.map((d: any) => ({
             id: d.id, title: d.title, url: d.url, source: d.source,
             snippet: d.content?.substring(0, 200) + "...",
-            relevanceScore: d.similarity || d.rrf_score || 0, author: d.author || "System"
+            relevanceScore: d.similarity ?? d.semantic_score ?? 0, author: d.author || "System"
           })),
         },
       });

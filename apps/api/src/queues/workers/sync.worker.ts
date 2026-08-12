@@ -51,12 +51,9 @@ export const syncWorker = new Worker(
 
         // 3. Process and embed documents
         for (const doc of rawDocuments) {
-          if (!doc.content || doc.content.trim().length === 0) {
-            console.log(`[Sync Worker] Skipping empty document: ${doc.title}`);
-            continue;
-          }
+          const docContent = (doc.content && doc.content.trim().length > 0) ? doc.content : `Document Title: ${doc.title}`;
           try {
-            const truncatedContent = doc.content.length > 1000 ? doc.content.substring(0, 1000) + "..." : doc.content;
+            const truncatedContent = docContent.length > 1000 ? docContent.substring(0, 1000) + "..." : docContent;
 
             // Generate embedding for content
             const embeddings = await embeddingService.generateEmbeddings([truncatedContent]);

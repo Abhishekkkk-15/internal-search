@@ -67,14 +67,46 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         );
       }
 
-      // Render standard text with simple paragraph breaks
+      // Render standard text with simple paragraph breaks and source citation badge parsing
       return (
         <div key={partIndex} className="space-y-2">
           {part.split('\n\n').map((paragraph, pIndex) => {
             if (!paragraph.trim()) return null;
+
+            // Regex to catch [Source X] citations or HTTP/HTTPS URLs
+            const tokenRegex = /(\[Source\s+\d+(?:\s*-\s*[A-Za-z]+)?\]|https?:\/\/[^\s\)\>\]]+)/g;
+            const paragraphParts = paragraph.split(tokenRegex);
+
             return (
               <p key={pIndex} className="leading-relaxed whitespace-pre-wrap break-words text-sm">
-                {paragraph}
+                {paragraphParts.map((subPart, subIdx) => {
+                  if (/^\[Source\s+\d+/.test(subPart)) {
+                    return (
+                      <span
+                        key={subIdx}
+                        className="inline-flex items-center gap-1 mx-0.5 px-1.5 py-0.5 rounded-md bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold border border-indigo-200/50 dark:border-indigo-800/50 align-middle shadow-2xs"
+                      >
+                        <Sparkles className="w-2.5 h-2.5 text-indigo-500 inline" />
+                        {subPart.replace(/^\[|\]$/g, '')}
+                      </span>
+                    );
+                  }
+                  if (/^https?:\/\//.test(subPart)) {
+                    return (
+                      <a
+                        key={subIdx}
+                        href={subPart}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 mx-0.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 underline font-medium break-all"
+                      >
+                        <span>{subPart}</span>
+                        <ExternalLink className="w-3 h-3 inline shrink-0" />
+                      </a>
+                    );
+                  }
+                  return subPart;
+                })}
               </p>
             );
           })}
