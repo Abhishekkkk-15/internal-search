@@ -358,7 +358,7 @@ export default function SearchPage() {
                     Extracted Body Snippet
                   </span>
                   <p className="text-xs text-slate-600 dark:text-slate-300 italic p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                    &ldquo;{expandedDoc.snippet}&rdquo;
+                    &ldquo;{expandedDoc.snippet || (expandedDoc as any)?.content || expandedDoc.title}&rdquo;
                   </p>
                 </div>
 
@@ -367,7 +367,7 @@ export default function SearchPage() {
                     Full Indexed Content Body
                   </span>
                   <pre className="p-4 rounded-2xl bg-slate-950 text-slate-200 text-xs font-mono whitespace-pre-wrap break-words leading-relaxed overflow-x-auto border border-slate-800">
-                    <code>{(expandedDoc as any)?.fullContent || expandedDoc.snippet}</code>
+                    <code>{(expandedDoc as any)?.fullContent || (expandedDoc as any)?.content || expandedDoc.snippet || expandedDoc.title}</code>
                   </pre>
                 </div>
               </div>

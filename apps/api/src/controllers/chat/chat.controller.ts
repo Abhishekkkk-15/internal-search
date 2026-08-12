@@ -150,22 +150,31 @@ ${contextText}`;
 
   async handleSearch(req: AuthenticatedRequest, res: Response) {
     try {
-      const { query, scope, mode } = req.body;
-      const userId = req.user?.id;
+      const { query, scope, sources, mode } = req.body;
+      const userId = req.user?.id || (req.headers['x-user-id'] as string);
 
       if (!query) {
         return res.status(400).json({ message: "Query is required" });
       }
 
-      const activeScope = (scope && scope.length > 0) ? scope : ['slack', 'notion', 'github'];
-      const rawResults = await embeddingService.searchDocuments(query, userId, activeScope, 10, mode || 'hybrid');
+      const activeScope = (scope && scope.length > 0) ? scope : (sources && sources.length > 0) ? sources : ['slack', 'notion', 'github'];
+      const rawResults = await embeddingService.searchDocuments(query, userId, activeScope, 20, mode || 'hybrid');
+
       const results = rawResults.filter((d: any) => {
-        const score = d.similarity ?? d.semantic_score ?? d.rrf_score ?? 0;
-        return score >= 0.4;
+        if (mode === 'keyword') return true;
+        const score = d.similarity ?? d.semantic_score ?? 0;
+        return score >= 0.2;
       });
 
       return res.status(200).json({
-        data: results,
+        data: results.map((d: any) => ({
+          ...d,
+          snippet: (d.content && d.content.trim().length > 0)
+            ? (d.content.length > 200 ? d.content.substring(0, 200) + "..." : d.content)
+            : `Notion Document: ${d.title}`,
+          fullContent: (d.content && d.content.trim().length > 0) ? d.content : `Notion Document: ${d.title}`,
+          relevanceScore: d.similarity ?? d.semantic_score ?? 0
+        })),
         metadata: {
           count: results.length,
           query,

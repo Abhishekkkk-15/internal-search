@@ -91,16 +91,22 @@ class EmbeddingService {
             ` as any[];
         }
 
+        const searchPattern = `%${query}%`;
+
         if (mode === 'keyword') {
             return await prisma.$queryRaw`
                 SELECT id, title, content, source, url, author, 
-                       0.0 as semantic_score,
+                       1.0 as semantic_score,
                        ts_rank_cd(to_tsvector('english', title || ' ' || content), websearch_to_tsquery('english', ${query})) as keyword_score,
                        1.0 / (60 + ROW_NUMBER() OVER (ORDER BY ts_rank_cd(to_tsvector('english', title || ' ' || content), websearch_to_tsquery('english', ${query})) DESC)) as rrf_score
                 FROM "Document"
                 WHERE "userId" = ${userId}
                 ${sourceFilter}
-                AND to_tsvector('english', title || ' ' || content) @@ websearch_to_tsquery('english', ${query})
+                AND (
+                  to_tsvector('english', title || ' ' || content) @@ websearch_to_tsquery('english', ${query})
+                  OR title ILIKE ${searchPattern}
+                  OR content ILIKE ${searchPattern}
+                )
                 ORDER BY keyword_score DESC
                 LIMIT ${limit};
             ` as any[];
@@ -125,7 +131,11 @@ class EmbeddingService {
                 FROM "Document"
                 WHERE "userId" = ${userId}
                 ${sourceFilter}
-                AND to_tsvector('english', title || ' ' || content) @@ websearch_to_tsquery('english', ${query})
+                AND (
+                  to_tsvector('english', title || ' ' || content) @@ websearch_to_tsquery('english', ${query})
+                  OR title ILIKE ${searchPattern}
+                  OR content ILIKE ${searchPattern}
+                )
                 ORDER BY score DESC
                 LIMIT 50
             )
