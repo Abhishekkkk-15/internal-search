@@ -48,23 +48,18 @@ export class ChatController {
       // 2. Extract user query & perform RAG search by userId for slack, notion, github
       const userQuery = messages[messages.length - 1].content;
       const activeScope = (scope && scope.length > 0) ? scope : ['slack', 'notion', 'github'];
-      const rawContextDocs = await embeddingService.searchDocuments(userQuery, userId, activeScope, 5);
+      const rawContextDocs = await embeddingService.searchDocuments(userQuery, userId, activeScope, 30);
       console.log(rawContextDocs)
-      // Filter search results: exclude documents with less than similarity score threshold
-      const contextDocs = rawContextDocs.filter((d: any) => {
-        const score = d.similarity ?? d.semantic_score ?? 0;
-        return score >= 0.2;
-      });
 
-      const contextText = contextDocs.length > 0
-        ? contextDocs.map((doc: any, i: number) => `[Source ${i + 1} - ${doc.source.toUpperCase()}]: ${doc.title}\nContent: ${doc.content}\nURL: ${doc.url || 'N/A'}`).join("\n\n---\n\n")
+      const contextText = rawContextDocs.length > 0
+        ? rawContextDocs.map((doc: any, i: number) => `[Source ${i + 1} - ${doc.source.toUpperCase()}]: ${doc.title}\nContent: ${doc.content}\nURL: ${doc.url || 'N/A'}`).join("\n\n---\n\n")
         : "No relevant documents found in your connected Slack, Notion, or GitHub sources.";
 
       // 3. Streaming setup
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
 
-      const systemPrompt = `You are Nexus Internal Knowledge Assistant.
+      const systemPrompt = `You are  Internal Search Knowledge Assistant.
 Your goal is to answer the user's question accurately and concisely based ONLY on the provided context from their connected Slack, Notion, and GitHub documents.
 
 Guidelines:
@@ -78,7 +73,7 @@ ${contextText}`;
       // Send search results first
       res.write(JSON.stringify({
         type: 'searchResults',
-        data: contextDocs.map((d: any) => ({
+        data: rawContextDocs.map((d: any) => ({
           id: d.id,
           title: d.title,
           url: d.url,
@@ -160,14 +155,9 @@ ${contextText}`;
       const activeScope = (scope && scope.length > 0) ? scope : (sources && sources.length > 0) ? sources : ['slack', 'notion', 'github'];
       const rawResults = await embeddingService.searchDocuments(query, userId, activeScope, 20, mode || 'hybrid');
 
-      const results = rawResults.filter((d: any) => {
-        if (mode === 'keyword') return true;
-        const score = d.similarity ?? d.semantic_score ?? 0;
-        return score >= 0.2;
-      });
 
       return res.status(200).json({
-        data: results.map((d: any) => ({
+        data: rawResults.map((d: any) => ({
           ...d,
           snippet: (d.content && d.content.trim().length > 0)
             ? (d.content.length > 200 ? d.content.substring(0, 200) + "..." : d.content)
@@ -176,7 +166,7 @@ ${contextText}`;
           relevanceScore: d.similarity ?? d.semantic_score ?? 0
         })),
         metadata: {
-          count: results.length,
+          count: rawResults.length,
           query,
           mode: mode || 'hybrid',
           method: mode === 'hybrid' ? "Hybrid (pgvector + tsvector via RRF)" : mode === 'semantic' ? "Semantic (pgvector)" : "Keyword (tsvector)"
