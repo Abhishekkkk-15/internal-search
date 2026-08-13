@@ -58,7 +58,6 @@ export function ClientLayoutShell({ children }: { children: React.ReactNode }) {
     { name: 'Chat Assistant', href: '/chat', icon: MessageSquare, exact: false },
     { name: 'Hybrid Search', href: '/search', icon: Search },
     { name: 'Connections', href: '/connections', icon: Network },
-    { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   const orgsList = [
