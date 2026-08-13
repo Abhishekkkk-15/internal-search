@@ -15,8 +15,8 @@ export class ChatController {
 
   async handleChat(req: AuthenticatedRequest, res: Response) {
     try {
-      const { messages, scope } = req.body;
-      const userId = req.user?.id;
+      const { messages, scope, conversationId } = req.body;
+      const userId = req.user?.id || (req.headers['x-user-id'] as string);
 
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -33,23 +33,29 @@ export class ChatController {
         }
       });
 
+      const userQuery = messages?.[messages.length - 1]?.content || "";
+
       // 1. Get or create conversation for user
-      let conversation = await prisma.conversation.findFirst({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-      });
+      let conversation = null;
+      if (conversationId) {
+        conversation = await prisma.conversation.findFirst({
+          where: { id: conversationId, userId }
+        });
+      }
 
       if (!conversation) {
+        const title = userQuery.trim().length > 40
+          ? userQuery.trim().substring(0, 40) + "..."
+          : userQuery.trim() || "New Conversation";
+
         conversation = await prisma.conversation.create({
-          data: { userId, title: "New Chat" },
+          data: { userId, title },
         });
       }
 
       // 2. Extract user query & perform RAG search by userId for slack, notion, github
-      const userQuery = messages[messages.length - 1].content;
       const activeScope = (scope && scope.length > 0) ? scope : ['slack', 'notion', 'github'];
       const rawContextDocs = await embeddingService.searchDocuments(userQuery, userId, activeScope, 30);
-      console.log(rawContextDocs)
 
       const contextText = rawContextDocs.length > 0
         ? rawContextDocs.map((doc: any, i: number) => `[Source ${i + 1} - ${doc.source.toUpperCase()}]: ${doc.title}\nContent: ${doc.content}\nURL: ${doc.url || 'N/A'}`).join("\n\n---\n\n")
@@ -58,6 +64,9 @@ export class ChatController {
       // 3. Streaming setup
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
+
+      // Send conversation metadata first
+      res.write(JSON.stringify({ type: 'meta', conversationId: conversation.id }) + "\n");
 
       const systemPrompt = `You are  Internal Search Knowledge Assistant.
 Your goal is to answer the user's question accurately and concisely based ONLY on the provided context from their connected Slack, Notion, and GitHub documents.
@@ -126,10 +135,15 @@ ${contextText}`;
   }
 
   async getConversations(req: AuthenticatedRequest, res: Response) {
-    const user = req.user;
+    const userId = req.user?.id || (req.headers['x-user-id'] as string);
+    
+    if (!userId) {
+      return res.status(200).json({ pay: [] });
+    }
+
     const conversations = await prisma.conversation.findMany({
       where: {
-        userId: user?.id
+        userId
       },
       include: {
         messages: {

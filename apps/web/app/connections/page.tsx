@@ -13,7 +13,7 @@ import { SourceType } from '@nexus/types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 
-const API_BASE = 'http://localhost:3002/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api';
 
 // Predefined static config for display purposes
 const staticConfigs: Record<SourceType, { interval: string; description: string }> = {

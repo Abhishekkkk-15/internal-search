@@ -18,7 +18,7 @@ import { MessageBubble, SourceSelector, SourceIcon } from '@nexus/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 
-const API_BASE = 'http://localhost:3002/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api';
 
 interface ChatContainerViewProps {
   initialThreadId?: string;
@@ -34,7 +34,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
 
   // 1. Fetch Conversations (Threads)
   const { data: threadsData, isLoading: threadsLoading } = useQuery({
-    queryKey: ['conversations', session?.user?.id],
+    queryKey: ['conversations', userId],
     queryFn: async () => {
       // @ts-ignore
       const token = session?.accessToken;
@@ -48,8 +48,10 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
       const json = await res.json();
       return json.pay as any[];
     },
-    enabled: !!session?.user,
+    enabled: true,
   });
+
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(initialThreadId || null);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -74,8 +76,9 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
     'Scan documentation for Next.js 15 routing gateway errors.',
   ];
 
-  // Load messages if threadId is provided
+  // Load messages if threadId is provided or reset for new chat
   useEffect(() => {
+    setActiveThreadId(initialThreadId || null);
     if (initialThreadId && threadsData) {
       const thread = threadsData.find(t => t.id === initialThreadId);
       if (thread && thread.messages) {
@@ -84,6 +87,15 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
           timestamp: new Date(m.timestamp)
         })));
       }
+    } else if (!initialThreadId) {
+      setMessages([
+        {
+          id: 'welcome-init',
+          role: 'assistant',
+          content: "Hello! I am **Nexus Assistant**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
+          timestamp: new Date(),
+        },
+      ]);
     }
   }, [initialThreadId, threadsData]);
 
@@ -148,6 +160,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
         body: JSON.stringify({
           messages: [...messages, userMsg].filter(m => m.id !== 'welcome-init'),
           scope: selectedScope,
+          conversationId: initialThreadId || activeThreadId,
         }),
       });
 
@@ -172,24 +185,31 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
           try {
             const parsed = JSON.parse(line);
 
-            setMessages((prev) =>
-              prev.map((msg) => {
-                if (msg.id === placeholderAssistantId) {
-                  if (parsed.type === 'text') {
-                    return {
-                      ...msg,
-                      content: msg.content + parsed.content,
-                    };
-                  } else if (parsed.type === 'searchResults') {
-                    return {
-                      ...msg,
-                      searchResults: parsed.data,
-                    };
+            if (parsed.type === 'meta' && parsed.conversationId) {
+              setActiveThreadId(parsed.conversationId);
+              if (!initialThreadId) {
+                router.replace(`/chat/${parsed.conversationId}`);
+              }
+            } else {
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  if (msg.id === placeholderAssistantId) {
+                    if (parsed.type === 'text') {
+                      return {
+                        ...msg,
+                        content: msg.content + parsed.content,
+                      };
+                    } else if (parsed.type === 'searchResults') {
+                      return {
+                        ...msg,
+                        searchResults: parsed.data,
+                      };
+                    }
                   }
-                }
-                return msg;
-              })
-            );
+                  return msg;
+                })
+              );
+            }
           } catch (e) {
             // malformed chunk line bypass
           }
@@ -197,7 +217,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
       }
       
       // Invalidate queries to refresh sidebar
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', userId] });
 
     } catch (err) {
       setMessages((prev) =>
@@ -235,7 +255,18 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
             History Threads
           </span>
           <button
-            onClick={() => router.push('/chat')}
+            onClick={() => {
+              setActiveThreadId(null);
+              setMessages([
+                {
+                  id: 'welcome-init',
+                  role: 'assistant',
+                  content: "Hello! I am **Nexus Assistant**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
+                  timestamp: new Date(),
+                },
+              ]);
+              router.push('/chat');
+            }}
             className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1 text-xs font-semibold"
           >
             <Plus className="w-3.5 h-3.5" />
