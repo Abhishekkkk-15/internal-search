@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@nexus/database';
 import { SearchResult } from '@nexus/types';
-import { ragService } from '@nexus/ai';
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,18 +26,10 @@ export async function POST(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    let ragResponseText = "";
-    try {
-      const ragResult = await ragService.generateResponse(lastMessage);
-      ragResponseText = ragResult.text as string;
-    } catch (e) {
-      if (documents.length > 0) {
-        ragResponseText = `Found ${documents.length} relevant document(s) in the internal database:\n\n` +
-          documents.map((d, i) => `**[Source ${i + 1}]: ${d.title}**\n${d.content}`).join('\n\n');
-      } else {
-        ragResponseText = "No relevant internal documents found in the database for your query.";
-      }
-    }
+    let ragResponseText = documents.length > 0
+      ? `Found ${documents.length} relevant document(s) in the internal database:\n\n` +
+        documents.map((d, i) => `**[Source ${i + 1}]: ${d.title}**\n${d.content}`).join('\n\n')
+      : "No relevant internal documents found in the database for your query.";
 
     const searchResults: SearchResult[] = documents.map((doc) => ({
       id: doc.id,

@@ -106,7 +106,7 @@ ${contextText}`;
           conversationId: conversation.id,
           role: "assistant",
           content: fullContent,
-          searchResults: contextDocs.map((d: any) => ({
+          searchResults: rawContextDocs.map((d: any) => ({
             id: d.id, title: d.title, url: d.url, source: d.source,
             snippet: d.content?.substring(0, 200) + "...",
             relevanceScore: d.similarity ?? d.semantic_score ?? 0, author: d.author || "System"

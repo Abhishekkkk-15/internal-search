@@ -53,7 +53,7 @@ export const syncWorker = new Worker(
         for (const doc of rawDocuments) {
           const docContent = (doc.content && doc.content.trim().length > 0) ? doc.content : `Document Title: ${doc.title}`;
           try {
-            const truncatedContent = docContent.length > 1000 ? docContent.substring(0, 1000) + "..." : docContent;
+            const truncatedContent = docContent.length > 3000 ? docContent.substring(0, 3000) + "..." : docContent;
 
             // Generate embedding for content
             const embeddings = await embeddingService.generateEmbeddings([truncatedContent]);
