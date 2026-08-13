@@ -26,6 +26,55 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  // Inline Markdown parser for bold text, inline code, links, and citation badges
+  const formatInlineMarkdown = (text: string) => {
+    const tokenRegex = /(\[Source\s+\d+(?:\s*-\s*[A-Za-z]+)?\]|https?:\/\/[^\s\)\>\]]+|\*\*[^*]+\*\*|`[^`]+`)/g;
+    const parts = text.split(tokenRegex);
+
+    return parts.map((subPart, subIdx) => {
+      if (/^\[Source\s+\d+/.test(subPart)) {
+        return (
+          <span
+            key={subIdx}
+            className="inline-flex items-center gap-1 mx-0.5 px-1.5 py-0.5 rounded-md bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold border border-indigo-200/50 dark:border-indigo-800/50 align-middle shadow-2xs"
+          >
+            <Sparkles className="w-2.5 h-2.5 text-indigo-500 inline" />
+            {subPart.replace(/^\[|\]$/g, '')}
+          </span>
+        );
+      }
+      if (/^https?:\/\//.test(subPart)) {
+        return (
+          <a
+            key={subIdx}
+            href={subPart}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 mx-0.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 underline font-medium break-all"
+          >
+            <span>{subPart}</span>
+            <ExternalLink className="w-3 h-3 inline shrink-0" />
+          </a>
+        );
+      }
+      if (/^\*\*[^*]+\*\*$/.test(subPart)) {
+        return (
+          <strong key={subIdx} className="font-bold text-slate-900 dark:text-white">
+            {subPart.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (/^`[^`]+`$/.test(subPart)) {
+        return (
+          <code key={subIdx} className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 text-xs font-mono">
+            {subPart.slice(1, -1)}
+          </code>
+        );
+      }
+      return subPart;
+    });
+  };
+
   // Simple and highly robust code block and paragraph parser
   const renderFormattedContent = (content: string) => {
     if (!content) return null;
@@ -67,46 +116,38 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         );
       }
 
-      // Render standard text with simple paragraph breaks and source citation badge parsing
+      // Render standard text with Markdown formatting (headers, bold, lists, inline code, badges, links)
       return (
-        <div key={partIndex} className="space-y-2">
+        <div key={partIndex} className="space-y-2.5">
           {part.split('\n\n').map((paragraph, pIndex) => {
             if (!paragraph.trim()) return null;
 
-            // Regex to catch [Source X] citations or HTTP/HTTPS URLs
-            const tokenRegex = /(\[Source\s+\d+(?:\s*-\s*[A-Za-z]+)?\]|https?:\/\/[^\s\)\>\]]+)/g;
-            const paragraphParts = paragraph.split(tokenRegex);
+            // Handle Markdown Headings (e.g. ### Header or ## Header)
+            if (/^#{1,3}\s+/.test(paragraph.trim())) {
+              const headingText = paragraph.trim().replace(/^#{1,3}\s+/, '');
+              return (
+                <h4 key={pIndex} className="text-sm font-bold text-slate-900 dark:text-white pt-1">
+                  {headingText}
+                </h4>
+              );
+            }
 
+            // Handle Bullet List blocks (lines starting with - or *)
+            if (paragraph.split('\n').every(line => /^\s*[-*•]\s+/.test(line))) {
+              return (
+                <ul key={pIndex} className="space-y-1 my-1 pl-4 list-disc text-sm">
+                  {paragraph.split('\n').map((line, lIdx) => {
+                    const cleanLine = line.replace(/^\s*[-*•]\s+/, '');
+                    return <li key={lIdx}>{formatInlineMarkdown(cleanLine)}</li>;
+                  })}
+                </ul>
+              );
+            }
+
+            // Handle Standard Paragraphs
             return (
               <p key={pIndex} className="leading-relaxed whitespace-pre-wrap break-words text-sm">
-                {paragraphParts.map((subPart, subIdx) => {
-                  if (/^\[Source\s+\d+/.test(subPart)) {
-                    return (
-                      <span
-                        key={subIdx}
-                        className="inline-flex items-center gap-1 mx-0.5 px-1.5 py-0.5 rounded-md bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold border border-indigo-200/50 dark:border-indigo-800/50 align-middle shadow-2xs"
-                      >
-                        <Sparkles className="w-2.5 h-2.5 text-indigo-500 inline" />
-                        {subPart.replace(/^\[|\]$/g, '')}
-                      </span>
-                    );
-                  }
-                  if (/^https?:\/\//.test(subPart)) {
-                    return (
-                      <a
-                        key={subIdx}
-                        href={subPart}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 mx-0.5 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 underline font-medium break-all"
-                      >
-                        <span>{subPart}</span>
-                        <ExternalLink className="w-3 h-3 inline shrink-0" />
-                      </a>
-                    );
-                  }
-                  return subPart;
-                })}
+                {formatInlineMarkdown(paragraph)}
               </p>
             );
           })}
