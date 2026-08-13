@@ -16,7 +16,7 @@ export const getIntegrations = async (req: AuthenticatedRequest, res: Response):
   }
 
   const connections = await prisma.connection.findMany({
-    where: { 
+    where: {
       userId,
       source: { in: ['slack', 'notion', 'github'] }
     }
@@ -42,7 +42,7 @@ export const connectIntegration = async (req: AuthenticatedRequest, res: Respons
   }
 
   const state = Buffer.from(JSON.stringify({ userId, source })).toString('base64');
-  
+
   const clientId = process.env[`${source.toUpperCase()}_CLIENT_ID`];
   const redirectUri = process.env[`${source.toUpperCase()}_REDIRECT_URI`];
 
@@ -89,7 +89,7 @@ export const integrationCallback = async (req: Request, res: Response): Promise<
         redirect_uri: redirectUri,
         grant_type: 'authorization_code'
       }, {
-        headers: { 
+        headers: {
           'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
           'Notion-Version': '2022-06-28',
           'Content-Type': 'application/json'
@@ -154,11 +154,17 @@ export const disconnectIntegration = async (req: AuthenticatedRequest, res: Resp
   const source = req.params.source as string;
   const userId = req.user?.id || (req.headers['x-user-id'] as string);
 
-  if (!userId) {
-    res.status(401).json({ error: 'User not authenticated' });
+  if (!userId || !source) {
+    res.status(400).json({ error: 'Missing userId or source' });
     return;
   }
 
+  // 1. Delete all indexed document vectors & text records for this user and source
+  const deletedDocs = await prisma.document.deleteMany({
+    where: { userId, source }
+  });
+
+  // 2. Reset connection status, clear tokens, and reset indexedCount
   const existingConnection = await prisma.connection.findFirst({
     where: { userId, source }
   });
@@ -169,12 +175,31 @@ export const disconnectIntegration = async (req: AuthenticatedRequest, res: Resp
       data: {
         status: 'disconnected',
         accessToken: null,
-        refreshToken: null
+        refreshToken: null,
+        indexedCount: 0,
+        lastSync: null,
+        syncSchedule: null
       }
     });
   }
 
-  res.json({ success: true, message: `Disconnected ${source}` });
+  // 3. Remove active BullMQ repeatable cron job if present
+  try {
+    const { syncQueue } = require('../../queues/sync.queue');
+    const repeatableJobs = await syncQueue.getRepeatableJobs();
+    const existingJob = repeatableJobs.find((j: any) => j.name === `sync-${userId}-${source}`);
+    if (existingJob) {
+      await syncQueue.removeRepeatableByKey(existingJob.key);
+    }
+  } catch (qErr) {
+    console.error(`[Disconnect] Failed to remove repeatable cron job for ${source}:`, qErr);
+  }
+
+  res.json({
+    success: true,
+    message: `Disconnected ${source} and deleted ${deletedDocs.count} indexed documents`,
+    deletedCount: deletedDocs.count
+  });
 };
 
 // 4. Trigger Manual Sync (via BullMQ)
@@ -187,11 +212,11 @@ export const triggerSync = async (req: AuthenticatedRequest, res: Response): Pro
     return;
   }
 
-  await syncQueue.add(`sync-${userId}`, { userId }, { 
+  await syncQueue.add(`sync-${userId}`, { userId }, {
     priority: 1,
-    removeOnComplete: true 
+    removeOnComplete: true
   });
-  
+
   res.json({ success: true, message: `Sync job queued for user` });
 };
 
@@ -221,7 +246,7 @@ export const updateSchedule = async (req: AuthenticatedRequest, res: Response): 
     await syncQueue.add(
       `sync-${userId}-${source}`,
       { userId, source },
-      { 
+      {
         repeat: { pattern: schedule },
         removeOnComplete: true
       }

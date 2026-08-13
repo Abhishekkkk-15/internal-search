@@ -19,7 +19,8 @@ router.get('/:source/connect', connectIntegration);
 // OAuth Callback from external provider (Public - accessed by provider)
 router.get('/:source/callback', integrationCallback);
 
-// Revoke access (Protected)
+// Revoke access & delete indexed data (Protected)
 router.post('/:source/disconnect', authmiddleware, disconnectIntegration);
+router.delete('/:source', authmiddleware, disconnectIntegration);
 
 export default router;
