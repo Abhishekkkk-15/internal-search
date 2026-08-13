@@ -122,11 +122,11 @@ export default function DashboardPage() {
         <div className="max-w-2xl space-y-3 relative z-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-xs font-semibold tracking-wide border border-indigo-100 dark:border-indigo-900">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Nexus Active Core v2.4</span>
+            <span>Internal Search Core v2.4</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Welcome back to <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Nexus Assistant</span>
+            Welcome back to <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Internal Search AI</span>
           </h2>
 
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">

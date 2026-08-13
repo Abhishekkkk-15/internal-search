@@ -163,7 +163,7 @@ export default function ConnectionsPage() {
               Enterprise Integration Gateways
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-              Nexus Assistant uses encrypted short-lived delegated tokens to index company repositories securely. Configure targeted ingestion rates or force flush index buffers below.
+              Internal Search AI uses encrypted short-lived delegated tokens to index company repositories securely. Configure targeted ingestion rates or force flush index buffers below.
             </p>
           </div>
           

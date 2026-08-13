@@ -141,7 +141,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <div className={cn('flex-1 max-w-[85%] sm:max-w-[75%]', isUser && 'text-right')}>
         <div className="flex items-center gap-2 mb-1 justify-start" style={{ flexDirection: isUser ? 'row-reverse' : 'row' }}>
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-            {isUser ? 'You' : 'Nexus Assistant'}
+            {isUser ? 'You' : 'Internal Search AI'}
           </span>
           {!isUser && <Sparkles className="w-3 h-3 text-indigo-500" />}
           <span className="text-[10px] text-slate-400">

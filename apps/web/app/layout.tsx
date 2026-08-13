@@ -6,8 +6,8 @@ import { SessionProviderWrapper } from '../components/SessionProviderWrapper';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Nexus Assistant • RAG Enterprise Search & Automation',
-  description: 'Connected internal assistant querying Slack, Notion, GitHub, Google Drive, and Jira workflows with triggered auto-actions.',
+  title: 'Internal Search AI • RAG Enterprise Search',
+  description: 'Unified internal AI search engine querying connected Slack, Notion, and GitHub workspace platforms.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

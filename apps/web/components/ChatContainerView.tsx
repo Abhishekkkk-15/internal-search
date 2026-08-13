@@ -57,7 +57,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
     {
       id: 'welcome-init',
       role: 'assistant',
-      content: "Hello! I am **Nexus Assistant**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
+      content: "Hello! I am **Internal Search AI**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
       timestamp: new Date(),
     },
   ]);
@@ -92,7 +92,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
         {
           id: 'welcome-init',
           role: 'assistant',
-          content: "Hello! I am **Nexus Assistant**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
+          content: "Hello! I am **Internal Search AI**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
           timestamp: new Date(),
         },
       ]);
@@ -261,7 +261,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
                 {
                   id: 'welcome-init',
                   role: 'assistant',
-                  content: "Hello! I am **Nexus Assistant**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
+                  content: "Hello! I am **Internal Search AI**, your enterprise data search assistant. I can search across your connected Slack, Notion, and GitHub documents.\n\nHow can I help you today?",
                   timestamp: new Date(),
                 },
               ]);
@@ -379,7 +379,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
               onKeyDown={handleKeyDown}
               onInput={handleTextareaInput}
               rows={1}
-              placeholder="Ask Nexus Assistant anything... (Press Enter to dispatch)"
+              placeholder="Ask Internal Search AI anything... (Press Enter to dispatch)"
               className="flex-1 bg-transparent px-3 py-2 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none resize-none max-h-44 leading-relaxed"
             />
 

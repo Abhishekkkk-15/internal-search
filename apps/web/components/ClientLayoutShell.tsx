@@ -84,7 +84,7 @@ export function ClientLayoutShell({ children }: { children: React.ReactNode }) {
             {sidebarExpanded && (
               <div className="flex flex-col truncate animate-in fade-in duration-200">
                 <span className="font-bold text-sm tracking-tight text-slate-800 dark:text-white flex items-center gap-1">
-                  Nexus <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">AI</span>
+                  Internal Search <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">AI</span>
                 </span>
                 <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">Enterprise RAG</span>
               </div>
