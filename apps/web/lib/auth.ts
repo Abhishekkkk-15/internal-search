@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@nexus/database";
 
-const authSecret = process.env.NEXTAUTH_SECRET;
+const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "internal_search_ai_auth_secret_32_bytes_key";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
 
