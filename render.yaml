@@ -3,7 +3,7 @@ services:
     name: nexus-assistant-api
     env: node
     plan: free
-    buildCommand: pnpm install && pnpm --filter @nexus/database run generate && pnpm --filter api run build
+    buildCommand: pnpm install && pnpm run build
     startCommand: node apps/api/dist/index.js
     healthCheckPath: /health
     envVars:
