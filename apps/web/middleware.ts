@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "internal_search_ai_auth_secret_32_bytes_key";
+const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "internal_search";
 
 export async function middleware(req: NextRequest) {
   const token = await getToken({
