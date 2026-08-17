@@ -95,22 +95,4 @@ pnpm run dev
 
 ---
 
-## 🗄️ Database Schema Highlight
 
-The core of the vector search relies on the `Document` model in Prisma:
-
-```prisma
-model Document {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  content   String   @db.Text
-  source    String   // slack, notion, github
-  url       String?
-  author    String?
-  createdAt DateTime @default(now())
-  
-  embedding Unsupported("vector(4096)")? // pgvector integration
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-```
