@@ -37,6 +37,7 @@ export const authmiddleware = (
   }
 
   try {
+    console.log(process.env.NEXTAUTH_SECRET)
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET as string);
     req.user = decoded as User;
     next();
