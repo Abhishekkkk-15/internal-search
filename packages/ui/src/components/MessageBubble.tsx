@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Bot, Sparkles, Copy, Check, ExternalLink } from 'lucide-react';
-import { Message, SearchResult } from '@nexus/types';
+import { Message, SearchResult, Action } from '@nexus/types';
 import { cn } from '../lib/utils';
 import { SourceIcon } from './SourceIcon';
 import { ActionResultCard } from './ActionResultCard';
@@ -249,7 +249,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block tracking-wide uppercase">
               Triggered Automated Actions
             </span>
-            {message.actions.map((act, idx) => (
+            {message.actions.map((act: Action, idx: number) => (
               <ActionResultCard
                 key={idx}
                 action={act}
