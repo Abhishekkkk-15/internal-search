@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
+const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "internal_search_ai_auth_secret_32_bytes_key";
+
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getToken({
+    req,
+    secret,
+    secureCookie: req.nextUrl.protocol === 'https:',
+  });
   const { pathname } = req.nextUrl;
 
   const protectedRoutes = ['/dashboard', '/chat', '/search', '/connections'];
