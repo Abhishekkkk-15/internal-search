@@ -6,18 +6,28 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@nexus/database";
 
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "internal_search_ai_auth_secret_32_bytes_key";
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_ID || process.env.AUTH_GOOGLE_ID || "";
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_SECRET || process.env.AUTH_GOOGLE_SECRET || "";
+const githubClientId = process.env.GITHUB_CLIENT_ID || process.env.GITHUB_ID || process.env.AUTH_GITHUB_ID || "";
+const githubClientSecret = process.env.GITHUB_CLIENT_SECRET || process.env.GITHUB_SECRET || process.env.AUTH_GITHUB_SECRET || "";
+
+if (!googleClientSecret && typeof window === 'undefined') {
+  console.warn('[NextAuth Warning] GOOGLE_CLIENT_SECRET is not set in environment variables!');
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
 
   providers: [
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID || process.env.GITHUB_ID || "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || process.env.GITHUB_SECRET || "",
+      clientId: githubClientId,
+      clientSecret: githubClientSecret,
       allowDangerousEmailAccountLinking: true,
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_SECRET || "",
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
       allowDangerousEmailAccountLinking: true,
     }),
   ],
