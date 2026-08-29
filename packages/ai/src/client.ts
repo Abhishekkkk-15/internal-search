@@ -7,7 +7,7 @@ export const CHAT_MODELS = {
   SMART_EXTRA: "meta/llama-3.1-405b-instruct",
   CHEAP: "mistralai/mistral-7b-instruct",
   CODER: "deepseek-ai/deepseek-coder",
-  EMBED: "nemotron-3-embed-1b",
+  EMBED: "nvidia/nemotron-3-embed-1b",
 } as const;
 
 export type ChatModel = (typeof CHAT_MODELS)[keyof typeof CHAT_MODELS];
@@ -34,7 +34,7 @@ export const getNvidiaChatClient = (
 };
 
 export const getNvidiaEmbedClient = (
-  model: "nemotron-3-embed-1b" = CHAT_MODELS.EMBED,
+  model: "nvidia/nemotron-3-embed-1b" = CHAT_MODELS.EMBED,
 ): OpenAIEmbeddings => {
   const apiKey = process.env.INVDIA_API_KEY || "dummy_api_key_for_build";
 
