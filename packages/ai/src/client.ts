@@ -7,7 +7,7 @@ export const CHAT_MODELS = {
   SMART_EXTRA: "meta/llama-3.1-405b-instruct",
   CHEAP: "mistralai/mistral-7b-instruct",
   CODER: "deepseek-ai/deepseek-coder",
-  EMBED: "nvidia/nv-embed-v1"
+  EMBED: "nemotron-3-embed-1b"
 } as const;
 
 export type ChatModel = (typeof CHAT_MODELS)[keyof typeof CHAT_MODELS];
