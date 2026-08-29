@@ -116,7 +116,7 @@ model Document {
   createdAt DateTime @default(now())
   
   // pgvector extension mapping
-  embedding Unsupported("vector(4096)")?
+  embedding Unsupported("vector(2048)")?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
