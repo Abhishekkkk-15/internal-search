@@ -152,7 +152,14 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
   // Scroll to bottom smoothly when new messages arrive
   useEffect(() => {
     if (!showScrollBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   }, [messages, isStreaming]);
 
@@ -163,7 +170,14 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
     setShowScrollBottom(false);
   };
 
@@ -392,9 +406,9 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
 
   // Render Sidebar Content (shared between desktop & mobile)
   const renderSidebarContent = () => (
-    <div className="flex flex-col h-full bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-xl select-none">
+    <div className="flex flex-col h-full min-h-0 bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-xl select-none">
       {/* Sidebar Header */}
-      <div className="p-3.5 space-y-3 border-b border-slate-200/70 dark:border-slate-800/70">
+      <div className="p-3.5 space-y-3 border-b border-slate-200/70 dark:border-slate-800/70 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
@@ -450,7 +464,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
       </div>
 
       {/* Scrollable Threads List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2 space-y-4">
         {threadsLoading ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2 text-slate-400">
             <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
@@ -550,7 +564,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
   );
 
   return (
-    <div className="flex h-full w-full overflow-hidden relative bg-slate-50/50 dark:bg-slate-950">
+    <div className="flex h-full max-h-full w-full min-h-0 flex-1 overflow-hidden relative bg-slate-50/50 dark:bg-slate-950">
       {/* 1. Mobile Sidebar Drawer Overlay */}
       <AnimatePresence>
         {mobileSidebarOpen && (
@@ -577,7 +591,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
 
       {/* 2. Desktop Collapsible Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col border-r border-slate-200/70 dark:border-slate-800/70 transition-all duration-300 shrink-0 ${
+        className={`hidden lg:flex flex-col border-r border-slate-200/70 dark:border-slate-800/70 transition-all duration-300 shrink-0 h-full min-h-0 ${
           sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'
         }`}
       >
@@ -585,7 +599,7 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
       </aside>
 
       {/* 3. Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full relative">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full relative overflow-hidden">
         {/* Top Chat Header */}
         <header className="h-14 border-b border-slate-200/70 dark:border-slate-800/70 px-4 sm:px-6 flex items-center justify-between shrink-0 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md z-10">
           <div className="flex items-center gap-3 min-w-0">
@@ -654,7 +668,8 @@ export function ChatContainerView({ initialThreadId }: ChatContainerViewProps) {
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 md:p-8 space-y-6"
+          style={{ scrollBehavior: 'smooth' }}
         >
           {/* Empty / Welcome Hero Display */}
           {messages.length <= 1 && (

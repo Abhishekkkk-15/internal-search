@@ -66,8 +66,15 @@ export function ClientLayoutShell({ children }: { children: React.ReactNode }) {
     'Nexus Research Beta',
   ];
 
+  const isChat = pathname.startsWith('/chat');
+
   return (
-    <div className="flex min-h-screen relative z-10">
+    <div
+      className={cn(
+        'flex relative z-10',
+        isChat ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'
+      )}
+    >
       {/* Sidebar container */}
       <aside
         className={cn(
@@ -147,11 +154,12 @@ export function ClientLayoutShell({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           'flex-1 flex flex-col min-w-0 transition-all duration-300',
+          isChat ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen',
           sidebarExpanded ? 'pl-64' : 'pl-20'
         )}
       >
         {/* Superior Glass Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md">
+        <header className="sticky top-0 z-30 flex items-center justify-between h-16 shrink-0 px-6 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md">
           {/* Active section title context */}
           <div className="flex items-center gap-3">
             <h1 className="text-sm font-bold text-slate-800 dark:text-white capitalize tracking-wide">
@@ -249,9 +257,9 @@ export function ClientLayoutShell({ children }: { children: React.ReactNode }) {
         {/* Content view screen */}
         <main
           className={cn(
-            'flex-1 animate-in fade-in duration-300',
-            pathname.startsWith('/chat')
-              ? 'p-0 w-full h-[calc(100vh-4rem)] overflow-hidden'
+            'flex-1 min-h-0 animate-in fade-in duration-300',
+            isChat
+              ? 'p-0 w-full h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col'
               : 'p-6 max-w-7xl w-full mx-auto'
           )}
         >
