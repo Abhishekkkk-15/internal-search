@@ -247,7 +247,14 @@ export function ClientLayoutShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Content view screen */}
-        <main className="flex-1 p-6 max-w-7xl w-full mx-auto animate-in fade-in duration-300">
+        <main
+          className={cn(
+            'flex-1 animate-in fade-in duration-300',
+            pathname.startsWith('/chat')
+              ? 'p-0 w-full h-[calc(100vh-4rem)] overflow-hidden'
+              : 'p-6 max-w-7xl w-full mx-auto'
+          )}
+        >
           {children}
         </main>
       </div>

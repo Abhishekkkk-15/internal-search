@@ -157,6 +157,34 @@ ${contextText}`;
     return res.status(200).json({ pay });
   }
 
+  async deleteConversation(req: AuthenticatedRequest, res: Response) {
+    try {
+      const userId = req.user?.id || (req.headers['x-user-id'] as string);
+      const { id } = req.params;
+      const conversationId = Array.isArray(id) ? id[0] : id;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (!conversationId) {
+        return res.status(400).json({ message: "Conversation ID is required" });
+      }
+
+      await prisma.conversation.deleteMany({
+        where: {
+          id: conversationId,
+          userId,
+        },
+      });
+
+      return res.status(200).json({ success: true, message: "Conversation deleted" });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
   async handleSearch(req: AuthenticatedRequest, res: Response) {
     try {
       const { query, scope, sources, mode } = req.body;

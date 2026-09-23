@@ -8,7 +8,7 @@ interface PageProps {
 export default async function DynamicChatPage({ params }: PageProps) {
   const resolvedParams = await params;
   return (
-    <div className="w-full">
+    <div className="w-full h-full flex flex-col">
       <ChatContainerView initialThreadId={resolvedParams.id} />
     </div>
   );
