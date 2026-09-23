@@ -3,7 +3,7 @@ import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 config();
 export const CHAT_MODELS = {
   FAST: "meta/llama-3.1-8b-instruct",
-  SMART: "meta/llama-3.1-70b-instruct",
+  SMART: "openai/gpt-oss-120b",
   SMART_EXTRA: "meta/llama-3.1-405b-instruct",
   CHEAP: "mistralai/mistral-7b-instruct",
   CODER: "deepseek-ai/deepseek-coder",
@@ -18,7 +18,7 @@ let embedClientInstance: OpenAIEmbeddings | null = null;
 export const getNvidiaChatClient = (
   model: Exclude<ChatModel, "nvidia/nv-embedqa-e5-v5">,
 ): ChatOpenAI => {
-  const apiKey = process.env.INVDIA_API_KEY || "dummy_api_key_for_build";
+  const apiKey = process.env.GROQ_API_KEY || "dummy_api_key_for_build";
 
   if (!chatClientInstance) {
     chatClientInstance = new ChatOpenAI({
@@ -26,7 +26,7 @@ export const getNvidiaChatClient = (
       apiKey,
       temperature: 0.7,
       configuration: {
-        baseURL: "https://integrate.api.nvidia.com/v1",
+        baseURL: "https://api.groq.com/openai/v1",
       },
     });
   }
